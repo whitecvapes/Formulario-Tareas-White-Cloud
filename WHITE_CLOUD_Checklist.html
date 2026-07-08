@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>White Cloud — Checklist de Turno</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f5f5;--surface:#fff;--surface2:#fafafa;--border:#e0e0e0;--border2:#d0d0d0;
+  --text:#1a1a1a;--text2:#555;--text3:#888;
+  --accent:#1d4ed8;--accent-bg:#eff6ff;--accent-light:#bfdbfe;
+  --green:#15803d;--green-bg:#f0fdf4;--green-light:#bbf7d0;
+  --red:#dc2626;--red-bg:#fef2f2;--red-light:#fecaca;
+  --orange:#c2410c;--orange-bg:#fff7ed;--orange-light:#fed7aa;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;
+  --blue2:#0369a1;--blue2-bg:#f0f9ff;
+  --amber:#b45309;--amber-bg:#fffbeb;
+  --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.1);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;min-height:100vh}
+.app{max-width:680px;margin:0 auto;padding:.75rem .75rem 4rem}
+
+/* HEADER */
+.hdr{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.9rem 1rem;margin-bottom:.6rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+.hdr-title{font-size:16px;font-weight:700;color:var(--text)}
+.hdr-sub{font-size:12px;color:var(--text2);margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-light)}
+.rbtn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--red-light);color:var(--red);background:none;cursor:pointer}
+.rbtn:hover{background:var(--red-bg)}
+
+/* META */
+.meta{display:flex;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap}
+.mc{flex:1;min-width:120px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.55rem .8rem}
+.mc label{font-size:11px;color:var(--text3);display:block;margin-bottom:2px;font-weight:500}
+.mc input,.mc select{width:100%;font-size:14px;border:none;background:none;color:var(--text);outline:none;font-family:inherit}
+.prog-bar{height:5px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:5px}
+.prog-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+
+/* TABS */
+.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:.75rem;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab{flex:1;min-width:56px;padding:7px 6px;font-size:11px;font-weight:600;border:none;border-radius:7px;cursor:pointer;color:var(--text2);background:none;white-space:nowrap;font-family:inherit;transition:all .15s}
+.tab.active{background:var(--accent);color:#fff}
+
+/* SECTIONS */
+.sec{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;overflow:hidden}
+.sh{display:flex;align-items:center;gap:8px;padding:.65rem .9rem;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.sh:active{background:var(--surface2)}
+.si{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.st{font-size:13px;font-weight:600;color:var(--text);flex:1}
+.sc{font-size:11px;color:var(--text3);font-weight:500}
+.sv{font-size:12px;color:var(--text3);margin-left:2px;transition:transform .2s;display:inline-block}
+.sv.op{transform:rotate(180deg)}
+.tl{border-top:1px solid var(--border)}
+
+/* TASKS */
+.tr{display:flex;align-items:flex-start;gap:.65rem;padding:.5rem .9rem;border-bottom:1px solid var(--border);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .1s}
+.tr:last-child{border-bottom:none}
+.tr:active{background:var(--surface2)}
+.tr.dn .tt{color:var(--text3);text-decoration:line-through}
+.cb{width:20px;height:20px;border:2px solid var(--border2);border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;transition:all .15s;background:var(--surface)}
+.cb.ck{background:var(--accent);border-color:var(--accent)}
+.ck-icon{display:none;width:11px;height:8px}
+.cb.ck .ck-icon{display:block}
+.tc{flex:1;min-width:0}
+.tt{font-size:13px;color:var(--text);line-height:1.4}
+.tn{font-size:11px;color:var(--text3);margin-top:2px;font-style:italic}
+.ts{font-size:10px;color:var(--accent);margin-top:1px;font-weight:500}
+.sc-com{width:100%;font-size:12px;border:none;border-top:1px solid var(--border);border-radius:0;padding:.45rem .9rem;background:var(--surface2);color:var(--text2);font-family:inherit;outline:none;resize:none;display:block;min-height:38px;line-height:1.4}
+.sc-com:focus{background:var(--accent-bg);border-top-color:var(--accent)}
+.sc-com::placeholder{color:var(--text3)}
+.sc-com-wrap{border-top:1px solid var(--border)}
+
+/* BUTTONS */
+.bsave{width:100%;padding:.7rem;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:.6rem;display:flex;align-items:center;justify-content:center;gap:.4rem;-webkit-tap-highlight-color:transparent}
+.bsave:active{opacity:.85}
+
+/* ALERTS */
+.al{border-radius:8px;padding:.55rem .75rem;font-size:12px;margin-bottom:.5rem;display:flex;align-items:flex-start;gap:.4rem;line-height:1.4}
+.ald{background:var(--red-bg);border:1px solid var(--red-light);color:var(--red)}
+.alw{background:var(--orange-bg);border:1px solid var(--orange-light);color:var(--orange)}
+
+/* RECEPCIONES */
+.rf{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.75rem .9rem;margin-bottom:.5rem}
+.rf h3{font-size:13px;font-weight:600;color:var(--text);margin-bottom:.5rem}
+.rg{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.5rem}
+.rfl{display:flex;flex-direction:column;gap:2px}
+.rfl.fu{grid-column:1/-1}
+.rfl label{font-size:11px;color:var(--text3);font-weight:500}
+.rfl input,.rfl select,.rfl textarea{font-size:13px;border:1px solid var(--border);border-radius:7px;padding:6px 9px;background:var(--surface2);color:var(--text);font-family:inherit;outline:none;-webkit-appearance:none}
+.rfl input:focus,.rfl select:focus,.rfl textarea:focus{border-color:var(--accent)}
+.rfl textarea{resize:none;height:52px}
+.rbs{display:flex;gap:.4rem}
+.bok{flex:1;padding:.55rem;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.bnk{flex:1;padding:.55rem;border:none;border-radius:8px;background:var(--red);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+
+.ri{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;margin-bottom:.35rem}
+.rih{display:flex;align-items:center;justify-content:space-between;gap:.4rem}
+.rp{font-size:10px;padding:2px 7px;border-radius:99px;font-weight:600}
+.pok{background:var(--green-bg);color:var(--green)}
+.pnk{background:var(--red-bg);color:var(--red)}
+.rp-neutral{background:var(--accent-bg);color:var(--accent)}
+.rd{font-size:11px;color:var(--text2);margin-top:2px}
+.bd{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px;line-height:1}
+.bd:active{color:var(--red)}
+
+/* CASHLOGY */
+.cg{display:grid;grid-template-columns:repeat(4,1fr);gap:.3rem;margin-bottom:.5rem}
+.moc{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.4rem .35rem;text-align:center}
+.moc label{font-size:10px;color:var(--text3);display:block;margin-bottom:2px;font-weight:500}
+.mn{font-size:15px;font-weight:600;color:var(--text)}
+.mbs{display:flex;gap:3px;justify-content:center;margin-top:4px}
+.mb{width:26px;height:26px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text);font-family:inherit;-webkit-tap-highlight-color:transparent}
+.mb:active{background:var(--border)}
+.mow{border-color:var(--red-light)!important;background:var(--red-bg)!important}
+.mow .mn{color:var(--red)}
+.mow label{color:var(--red)}
+
+/* REGISTRO */
+.sr{display:flex;gap:.4rem;margin-bottom:.6rem;flex-wrap:wrap}
+.st2{flex:1;min-width:80px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.6rem .5rem;text-align:center}
+.sn{font-size:20px;font-weight:700;color:var(--text)}
+.sl{font-size:10px;color:var(--text3);margin-top:1px}
+.le{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.6rem .85rem;margin-bottom:.4rem}
+.le h4{font-size:12px;font-weight:600;color:var(--text)}
+.lm{font-size:10px;color:var(--text3);margin-top:2px;margin-bottom:.2rem}
+.lp{font-size:11px;color:var(--text2);line-height:1.5;margin-top:.2rem}
+.empty{text-align:center;padding:2rem 1rem;color:var(--text3);font-size:13px}
+.empty-icon{font-size:32px;display:block;margin-bottom:.4rem}
+
+/* BILL input */
+.bill-row{display:flex;gap:.4rem;align-items:flex-end;margin-bottom:.4rem}
+.bill-row .rfl{flex:1}
+.bill-btn{padding:.5rem .75rem;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+
+/* PILL TURNO */
+.turno-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;margin-left:4px}
+.tp-m{background:var(--amber-bg);color:var(--amber)}
+.tp-t{background:var(--blue2-bg);color:var(--blue2)}
+.tp-c{background:var(--purple-bg);color:var(--purple)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="hdr">
+  <div>
+    <div class="hdr-title">&#x1F4CB; White Cloud</div>
+    <div class="hdr-sub" id="ftxt">Checklist de turno</div>
+  </div>
+  <div class="hdr-right">
+    <span class="badge" id="bfch"></span>
+    <button class="rbtn" onclick="resetDia()">&#x21BB; Nuevo día</button>
+    <button class="rbtn" onclick="resetSem()" style="border-color:var(--orange-light);color:var(--orange)">&#x1F4C5; Nueva semana</button>
+  </div>
+</div>
+
+<div class="meta">
+  <div class="mc">
+    <label>Empleado/a</label>
+    <input type="text" id="emp" placeholder="Nombre..." oninput="sv()">
+  </div>
+  <div class="mc">
+    <label>Turno</label>
+    <select id="trn" onchange="sv()">
+      <option value="mañana">Mañana</option>
+      <option value="tarde">Tarde</option>
+      <option value="completo">Completo</option>
+    </select>
+  </div>
+  <div class="mc" style="min-width:150px">
+    <label>Progreso del turno</label>
+    <div style="font-size:13px;font-weight:600;color:var(--text)" id="ptxt">0 / 0</div>
+    <div class="prog-bar"><div class="prog-fill" id="pbar" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="go('diarias',this)">&#x2600;&#xFE0F; Diarias</button>
+  <button class="tab" onclick="go('cashlogy',this)">&#x1F4B0; Cashlogy</button>
+  <button class="tab" onclick="go('recepciones',this)">&#x1F4E6; Recepciones</button>
+  <button class="tab" onclick="go('semanales',this)">&#x1F4C5; Semanales</button>
+  <button class="tab" onclick="go('desconexion',this)">&#x1F4F5; Desconexion</button>
+  <button class="tab" onclick="go('registro',this)">&#x1F4CB; Registro</button>
+</div>
+
+<div id="tab-diarias"></div>
+<div id="tab-cashlogy" style="display:none"></div>
+<div id="tab-recepciones" style="display:none"></div>
+<div id="tab-semanales" style="display:none"></div>
+<div id="tab-desconexion" style="display:none"></div>
+<div id="tab-registro" style="display:none">
+  <div class="sr" id="sr"></div>
+  <div id="ll"></div>
+</div>
+
+</div><!-- .app -->
+
+<script>
+const PRV=['Vaperalia','Eciglogística','LYF Labs','Camarasa Moda','Llamative','Oil4Vap','Vapeo Distro','Mercadal','Distribución Mayorista','Glovap Spain SLU','Simply Green','Kunibu','Otro'];
+const MON=[{id:'c001',l:'0,01€'},{id:'c002',l:'0,02€'},{id:'c005',l:'0,05€'},{id:'c010',l:'0,10€'},{id:'c020',l:'0,20€'},{id:'c050',l:'0,50€'},{id:'c100',l:'1,00€'},{id:'c200',l:'2,00€'}];
+
+const SD=[
+  {id:'ap',ic:'🔑',cl:'#1a6b3a',ti:'Apertura',ta:[
+    {id:'a1',tx:'Desconectar alarma',no:'Primera acción al entrar'},
+    {id:'a2',tx:'Encender luces — circuitos VERDES del cuadro eléctrico',no:'Solo verdes'},
+    {id:'a3',tx:'Conectar móvil de la tienda a carga',no:''},
+    {id:'a4',tx:'Encender altavoz — verificar que la música está en SoundToro',no:'Prohibido reproducir música sin licencia — §24'},
+    {id:'a5',tx:'Depositar el móvil personal en la caja de desconexión digital invertida',no:'Almacén — §20.3'},
+    {id:'a6',tx:'Cashlogy apertura: impresora → foto ticket → grupo WA → apagar impresora → desconectar USB',no:'Enviar foto al grupo WA'},
+    {id:'a7',tx:'Fichar entrada en SESAME',no:'Obligatorio — Art. 34.9 ET'},
+    {id:'a8',tx:'Leer mensajes pendientes en grupos WA de tienda y ponerse al día',no:'Antes de comenzar las tareas — §19'},
+    {id:'a9',tx:'Barrer la tienda',no:''},
+    {id:'a10',tx:'Limpiar mostradores y zona de atención',no:''},
+    {id:'a11',tx:'Revisar estado general — vitrinas y estanterías',no:''},
+  ]},
+  {id:'rap',ic:'📦',cl:'#1565c0',ti:'Reposición apertura',ta:[
+    {id:'ra1',tx:'Revisar baldas: Nicokits, Shades, Resistencias, Dispositivos',no:'Mínimo stock visible en todo momento — §8'},
+    {id:'ra2',tx:'Revisar Longfill / Sales / Bases / Nevera — rellenar desde almacén',no:''},
+    {id:'ra3',tx:'Reponer huecos con la referencia más próxima disponible — nunca dejar huecos vacíos',no:'§5.1'},
+    {id:'ra4',tx:'Comunicar rotura de stock a gerencia por WA si se detecta',no:''},
+  ]},
+  {id:'man',ic:'🌅',cl:'#b45309',ti:'Turno de mañana',ta:[
+    {id:'m0',tx:'Tirar cajas vacías de recepciones de proveedores',no:'Salvo indicación contraria de gerencia — si se guardan → trastienda'},
+    {id:'m1',tx:'Revisar SATs pendientes y actualizar estado',no:'Contactar al cliente si procede — §13.2.3'},
+    {id:'m2',tx:'Revisar reservas activas y caducidad (máx. 72h)',no:'Cancelar en OSPOS y reponer en tienda si ha expirado — §14'},
+    {id:'m3',tx:'Revisar adeudados pendientes en OSPOS (envíos con pago pendiente)',no:'Si cliente ha confirmado transferencia → avisar a gerencia — §11.3'},
+    {id:'m4',tx:'Revisar seguimientos GLS/ViaXpress — enviar nº tracking al cliente si el paquete ha salido',no:'§11.3.3'},
+    {id:'m5',tx:'Revisar redes sociales: Instagram, Facebook, Google Business',no:'Notificaciones, mensajes — §6'},
+  ]},
+  {id:'tur',ic:'🔄',cl:'#6a1b9a',ti:'Durante el turno',ta:[
+    {id:'t1',tx:'Mantener mostradores limpios y despejados en todo momento',no:''},
+    {id:'t2',tx:'Reponer huecos en baldas a medida que se produzcan ventas',no:'Con la referencia más próxima disponible — §5.1'},
+    {id:'t3',tx:'Tirar cajas vacías de recepciones de proveedores',no:'Salvo indicación contraria de gerencia — si se guardan → trastienda'},
+    {id:'t4',tx:'Revisar basura — tirar si necesario y reponer bolsa nueva',no:'§4.5'},
+    {id:'t10',tx:'Producto nuevo recibido: etiquetar, dar visibilidad y comunicar al compañero',no:'En cambio de turno o por grupo WA — §5.2'},
+    {id:'t11',tx:'Merchandising recibido de proveedor: comunicar a gerencia y entregar en tienda',no:'No retener — §28'},
+    {id:'t12',tx:'Verificar stock productos de limpieza y avisar si baja del mínimo',no:'4 rollos papel · 2 limpiacristales · 2 friegasuelos · 2 lejía · 4 bolsas'},
+    {id:'t13',tx:'Verificar nivel de billetes en cajón azul — avisar a gerencia si < 50€',no:'Revisión diaria obligatoria · cualquier uso del cajón azul → registrar en hoja: razón, empleado, hora, cantidad'},
+  ]},
+  {id:'tar',ic:'🌆',cl:'#0277bd',ti:'Turno de tarde',ta:[
+    {id:'td0',tx:'Tirar cajas vacías de recepciones de proveedores',no:'Salvo indicación contraria de gerencia — si se guardan → trastienda'},
+    {id:'td1',tx:'Revisar SATs pendientes y actualizar estado',no:'Contactar al cliente si procede — §13.2.3'},
+    {id:'td2',tx:'Revisar reservas activas y caducidad (máx. 72h)',no:'Cancelar en OSPOS y reponer en tienda si ha expirado — §14'},
+    {id:'td3',tx:'Revisar adeudados pendientes en OSPOS (envíos con pago pendiente)',no:'Si cliente ha confirmado transferencia → avisar a gerencia — §11.3'},
+    {id:'td4',tx:'Revisar seguimientos GLS/ViaXpress — enviar nº tracking al cliente si el paquete ha salido',no:'§11.3.3'},
+    {id:'td5',tx:'Revisar redes sociales: Instagram, Facebook, Google Business',no:'Notificaciones, mensajes — §6'},
+  ]},
+  {id:'cam',ic:'💬',cl:'#e65100',ti:'Cambio de turno',ta:[
+    {id:'c1',tx:'Foto ticket cierre Cashlogy → enviar al grupo WA',no:''},
+    {id:'c2',tx:'Foto total datáfono → enviar al grupo WA',no:''},
+    {id:'c3',tx:'Captura OSPOS en el cambio → enviar al grupo WA',no:''},
+    {id:'c4',tx:'Rellenar formulario cambio de turno en Chrome (Form Cierres de Caja)',no:''},
+    {id:'c5',tx:'Informar verbalmente al compañero del estado de la tienda',no:'Incidencias, SATs, reservas, adeudados, envíos pendientes, recepciones en curso'},
+    {id:'c6',tx:'Si hay recepción abierta: comunicar al compañero y dejar anotado el estado',no:'Las recepciones quedan vinculadas al usuario que las inicia — §7.1'},
+  ]},
+  {id:'rpc',ic:'📋',cl:'#1a5276',ti:'Reposición pre-cierre',ta:[
+    {id:'rc1',tx:'Revisar baldas: Nicokits, Shades, Resistencias, Dispositivos',no:'Dejar bien repuesto para la apertura del día siguiente'},
+    {id:'rc2',tx:'Revisar Longfill / Sales / Bases / Nevera',no:''},
+    {id:'rc3',tx:'Anotar productos agotados en almacén → comunicar a gerencia',no:''},
+  ]},
+  {id:'cie',ic:'🔒',cl:'#b71c1c',ti:'Cierre',ta:[
+    {id:'cl1',tx:'Barrer y fregar la tienda',no:''},
+    {id:'cl2',tx:'Revisar basura — tirar si necesario y reponer bolsa nueva',no:'§4.5'},
+    {id:'cl3',tx:'Verificar que la puerta escaparate queda bien cerrada',no:''},
+    {id:'cl4',tx:'Apagar aire acondicionado',no:''},
+    {id:'cl5',tx:'Poner datáfono a cargar',no:''},
+    {id:'cl6',tx:'Cashlogy cierre: impresora → foto ticket → grupo WA → apagar impresora',no:''},
+    {id:'cl7',tx:'Traspasar billetes al stacker si nivel amarillo o rojo',no:''},
+    {id:'cl8',tx:'Foto total datáfono al cierre → grupo WA',no:''},
+    {id:'cl9',tx:'Captura OSPOS al cierre → grupo WA',no:''},
+    {id:'cl10',tx:'Rellenar formulario cierre en Chrome (Form Cierres de Caja)',no:''},
+    {id:'cl11',tx:'Verificar que no queda nadie en el interior antes de cerrar',no:'Prohibido cerrar con personas ajenas a la empresa dentro — §21.2'},
+    {id:'cl12',tx:'Recoger el móvil personal de la caja de desconexión digital invertida',no:'Almacén — §20.3'},
+    {id:'cl13',tx:'Fichar salida en SESAME',no:'Obligatorio'},
+    {id:'cl14',tx:'Puerta corredera en posición APERTURA TOTAL antes de salir',no:'⚠️ Si queda entreabierta → salto de alarma o motor inutilizado'},
+    {id:'cl15',tx:'Conectar sistema de alarma',no:'Última acción'},
+    {id:'cl16',tx:'Cerrar la tienda',no:''},
+  ]},
+];
+
+const SS=[{id:'sem',ic:'📅',cl:'#37474f',ti:'Tareas semanales',ta:[
+  {id:'s1',tx:'Limpieza a fondo de expositores, vitrinas y estanterías',no:'Preferiblemente a primera hora o sin clientes — §4.2'},
+  {id:'s2',tx:'Revisión completa del stock de almacén vs. baldas',no:'Detectar roturas y comunicar a gerencia'},
+  {id:'s3',tx:'Revisar lista de reposiciones SAT en Drive y actualizar estados',no:'Enviar actualización al cliente sobre estado de su SAT — §13.2.3'},
+  {id:'s4',tx:'Revisar envíos GLS/ViaXpress pendientes de recogida — cerrar los ya expedidos',no:'Confirmar cierre correcto en la plataforma — §11.3.2'},
+  {id:'s5',tx:'Revisar efectivo del cajón de caudales azul y registrar importe',no:'Revisión semanal obligatoria — comunicar a gerencia el estado'},
+]}];
+
+let S={},OS={},LG=[],RC=[],CUR='diarias';
+const K='wc5_';
+
+function today(){return new Date().toISOString().slice(0,10);}
+
+function load(){
+  try{
+    const s=localStorage.getItem(K+'s');if(s)S=JSON.parse(s);else S={};
+    const l=localStorage.getItem(K+'l');if(l)LG=JSON.parse(l);else LG=[];
+    const o=localStorage.getItem(K+'o');if(o)OS=JSON.parse(o);else OS={};
+    const r=localStorage.getItem(K+'r');if(r)RC=JSON.parse(r);else RC=[];
+  }catch(e){S={};LG=[];OS={};RC=[];}
+  const t=today();
+  if(S.date!==t){
+    // auto-reset semana si es lunes y la semana guardada es distinta
+    const isLunes=new Date().getDay()===1;
+    const semActual=weekKey();
+    if(isLunes && S.semana && S.semana!==semActual){
+      autoGuardarSemana();
+      S={date:t,ch:{},che:{},mo:S.mo||{},em:S.em||'',tr:S.tr||'mañana',wch:{},wcom:{},semana:semActual};
+    } else {
+      S={date:t,ch:{},che:{},mo:S.mo||{},em:S.em||'',tr:S.tr||'mañana',
+        wch:S.wch||{},wcom:S.wcom||{},semana:S.semana||semActual};
+    }
+    RC=RC.filter(x=>x.fecha===t);
+    sv();
+  }
+  if(!S.semana)S.semana=weekKey();
+  if(!S.wch)S.wch={};
+  if(!S.wcom)S.wcom={};
+}
+
+function weekKey(){
+  const d=new Date();
+  const mon=new Date(d);
+  mon.setDate(d.getDate()-((d.getDay()+6)%7));
+  return mon.toISOString().slice(0,10);
+}
+
+function autoGuardarSemana(){
+  // snapshot automático al resetear semana
+  const secs=SS;
+  const done=secs.flatMap(s=>s.ta.filter(t=>S.wch&&S.wch[t.id]).map(t=>({tx:t.tx,com:S.wcom&&S.wcom[t.id]?S.wcom[t.id]:''})));
+  const pend=secs.flatMap(s=>s.ta.filter(t=>!(S.wch&&S.wch[t.id])).map(t=>({tx:t.tx,com:S.wcom&&S.wcom[t.id]?S.wcom[t.id]:''})));
+  if(done.length||pend.length){
+    LG.unshift({
+      id:Date.now(),tipo:'semanal-auto',
+      semana:'Semana del '+S.semana,
+      fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
+      hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
+      em:'(auto)',tr:'—',comp:done.length,tot:secs.flatMap(s=>s.ta).length,
+      he:done.map(x=>x.tx+(x.com?' → '+x.com:'')),
+      pe:pend.map(x=>x.tx+(x.com?' → '+x.com:'')),
+      rec:0,rnk:0
+    });
+    if(LG.length>90)LG=LG.slice(0,90);
+    localStorage.setItem(K+'l',JSON.stringify(LG));
+  }
+}
+
+function sv(){
+  S.em=document.getElementById('emp')?.value||S.em||'';
+  S.tr=document.getElementById('trn')?.value||S.tr||'mañana';
+  if(!S.wch)S.wch={};if(!S.wcom)S.wcom={};
+  localStorage.setItem(K+'s',JSON.stringify(S));
+  localStorage.setItem(K+'l',JSON.stringify(LG));
+  localStorage.setItem(K+'o',JSON.stringify(OS));
+  localStorage.setItem(K+'r',JSON.stringify(RC));
+  prog();
+}
+
+function tgl(id,w){
+  if(!S.ch)S.ch={};if(!S.che)S.che={};
+  const k=w?'w_'+id:id;
+  S.ch[k]=!S.ch[k];
+  const row=document.getElementById('r_'+id);
+  const cb=document.getElementById('cb_'+id);
+  if(!row||!cb)return;
+  if(S.ch[k]){
+    row.classList.add('dn');cb.classList.add('ck');
+    cb.innerHTML='<svg class="ck-icon" viewBox="0 0 12 9" fill="none"><polyline points="1,5 4.5,8 11,1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const t=new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    if(!S.che[k])S.che[k]={hora:t,emp:S.em||''};
+    else S.che[k].hora=t;
+  }else{
+    row.classList.remove('dn');cb.classList.remove('ck');cb.innerHTML='';
+    delete S.che[k];
+  }
+  const te=document.getElementById('ts_'+id);
+  if(te)te.innerHTML=S.ch[k]?renderTs(k):'';
+  sv();
+}
+
+function renderTs(k){
+  const d=S.che&&S.che[k]?S.che[k]:{hora:'',emp:''};
+  const emp=(d.emp||'').replace(/"/g,'&quot;');
+  return '<span style="color:var(--accent);font-size:10px;font-weight:500">&#10003; '+d.hora+'</span> '+
+    '<input type="text" onclick="event.stopPropagation()" oninput="setEmp(\''+k+'\',this.value)" '+
+    'placeholder="Quién..." value="'+emp+'" '+
+    'style="font-size:10px;border:none;border-bottom:1px solid #ccc;background:none;color:#555;'+
+    'outline:none;width:80px;padding:0 2px;font-family:inherit;vertical-align:middle">';
+}
+
+function setEmp(k,val){
+  if(!S.che)S.che={};
+  if(!S.che[k])S.che[k]={hora:'',emp:''};
+  S.che[k].emp=val;
+  sv();
+}
+
+function togSec(id){
+  OS[id]=OS[id]===true?false:true;
+  const el=document.getElementById('tl_'+id);
+  const ch=document.getElementById('cv_'+id);
+  if(!el||!ch)return;
+  if(OS[id]===true){el.style.display='none';ch.classList.remove('op');}
+  else{el.style.display='block';ch.classList.add('op');}
+  localStorage.setItem(K+'o',JSON.stringify(OS));
+}
+
+function rSec(sec,w){
+  const open=OS[sec.id]!==true;
+  const done=sec.ta.filter(t=>S.ch?.[w?'w_'+t.id:t.id]).length;
+  return '<div class="sec">'+
+    '<div class="sh" onclick="togSec(\''+sec.id+'\')">'+
+    '<div class="si" style="background:'+sec.cl+'22">'+sec.ic+'</div>'+
+    '<span class="st">'+sec.ti+'</span>'+
+    '<span class="sc">'+done+'/'+sec.ta.length+'</span>'+
+    '<span class="sv '+(open?'op':'')+'" id="cv_'+sec.id+'">&#9660;</span>'+
+    '</div>'+
+    '<div class="tl" id="tl_'+sec.id+'" style="display:'+(open?'block':'none')+'">'+
+    sec.ta.map(function(t){
+      var k=w?'w_'+t.id:t.id;var d=!!(S.ch&&S.ch[k]);
+      var icon=d?'<svg class="ck-icon" viewBox="0 0 12 9" fill="none"><polyline points="1,5 4.5,8 11,1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>':'';
+      return '<div class="tr'+(d?' dn':'')+'" id="r_'+t.id+'" onclick="tgl(\''+t.id+'\','+w+')">'+
+        '<div class="cb'+(d?' ck':'')+'" id="cb_'+t.id+'">'+icon+'</div>'+
+        '<div class="tc">'+
+        '<div class="tt">'+t.tx+'</div>'+
+        (t.no?'<div class="tn">'+t.no+'</div>':'')+
+        '<div class="ts" id="ts_'+t.id+'">'+(d?renderTs(k):'')+'</div>'+
+        '</div></div>';
+    }).join('')+
+    '</div></div>';
+}
+
+function rDiarias(){
+  document.getElementById('tab-diarias').innerHTML=
+    SD.map(function(s){return rSec(s,false);}).join('')+
+    '<button class="bsave" onclick="gReg(\'diario\')">&#x1F4BE; Guardar registro del turno</button>';
+}
+
+function rSem(){
+  document.getElementById('tab-semanales').innerHTML=
+    SS.map(function(s){return rSec(s,true);}).join('')+
+    '<button class="bsave" onclick="gReg(\'semanal\')">&#x1F4BE; Guardar registro semanal</button>';
+}
+
+function setMon(id,d){
+  if(!S.mo)S.mo={};
+  S.mo[id]=Math.max(0,(S.mo[id]||0)+d);
+  sv();rCash();
+}
+
+function rCash(){
+  var m=S.mo||{};
+  var alts=MON.filter(function(x){return (m[x.id]||0)<2;}).map(function(x){return x.l;});
+  var h='';
+  if(alts.length)h+='<div class="al ald">&#9888; <span><strong>Tubos bajos:</strong> '+alts.join(' · ')+' — Avisar a gerencia</span></div>';
+  if(S.ba)h+='<div class="al ald">&#9888; <span><strong>Cajón azul:</strong> Billetes &lt; 50€ — Avisar a gerencia</span></div>';
+
+  var ct=[
+    {id:'csh1',tx:'Revisar nivel de monedas y billetes en monitor de Cashlogy',no:'Si barra amarilla o roja → recargar'},
+    {id:'csh2',tx:'Recargar denominaciones bajas si es necesario (ver control de tubos abajo)',no:'Usuario tienda → cargar cambio → impresora → Form Cashlogy Chrome → avisar a gerencia'},
+    {id:'csh3',tx:'Traspasar billetes al stacker si nivel amarillo o rojo',no:'En cambio de turno y en cierre'},
+  ];
+  h+='<div class="sec" style="margin-bottom:.5rem">'+
+    '<div class="sh" onclick="togSec(\'csh\')">'+
+    '<div class="si" style="background:#1a6b3a22">💰</div>'+
+    '<span class="st">Verificación Cashlogy</span>'+
+    '<span class="sc">'+ct.filter(function(t){return !!(S.ch&&S.ch[t.id]);}).length+'/'+ct.length+'</span>'+
+    '<span class="sv op" id="cv_csh">&#9660;</span>'+
+    '</div>'+
+    '<div class="tl" id="tl_csh">'+
+    ct.map(function(t){
+      var d=!!(S.ch&&S.ch[t.id]);
+      var icon=d?'<svg class="ck-icon" viewBox="0 0 12 9" fill="none"><polyline points="1,5 4.5,8 11,1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>':'';
+      return '<div class="tr'+(d?' dn':'')+'" id="r_'+t.id+'" onclick="tgl(\''+t.id+'\',false)">'+
+        '<div class="cb'+(d?' ck':'')+'" id="cb_'+t.id+'">'+icon+'</div>'+
+        '<div class="tc"><div class="tt">'+t.tx+'</div>'+(t.no?'<div class="tn">'+t.no+'</div>':'')+'<div class="ts" id="ts_'+t.id+'">'+(d?'✓ Hecho':'')+'</div></div>'+
+        '</div>';
+    }).join('')+
+    '</div></div>';
+
+  h+='<div class="rf"><h3>&#x1F4B4; Control de tubos por denominación</h3>'+
+    '<p style="font-size:11px;color:var(--text3);margin-bottom:.5rem">Alerta en rojo si quedan menos de 2 tubos.</p>'+
+    '<div class="cg">'+
+    MON.map(function(mn){
+      var q=m[mn.id]||0;var w=q<2;
+      return '<div class="moc'+(w?' mow':'')+'" >'+
+        '<label>'+mn.l+'</label>'+
+        '<div class="mn">'+q+'</div>'+
+        '<div class="mbs">'+
+        '<button class="mb" onclick="setMon(\''+mn.id+'\',-1)">&#8722;</button>'+
+        '<button class="mb" onclick="setMon(\''+mn.id+'\',1)">&#43;</button>'+
+        '</div></div>';
+    }).join('')+
+    '</div>'+
+    (alts.length?'<div class="al ald" style="margin-top:.35rem">&#9888; Menos de 2 tubos: '+alts.join(', ')+' — Avisar a gerencia</div>':'')+
+    '</div>';
+
+  h+='<div class="rf"><h3>&#x1F4BC; Cajón de caudales azul</h3>'+
+    '<div class="bill-row">'+
+    '<div class="rfl"><label>Billetes disponibles (€)</label><input type="number" id="bim" min="0" step="1" placeholder="0" value="'+(S.bi||'')+'" style="font-size:16px;padding:6px 0;border:none;border-bottom:2px solid var(--border2);border-radius:0;background:none"></div>'+
+    '<button class="bill-btn" onclick="gBill()">&#10003; Registrar</button>'+
+    '</div>'+
+    '<p style="font-size:11px;color:var(--text3);margin-top:.25rem">Alerta automática si el importe es inferior a 50€. Todo uso del cajón azul debe quedar registrado en la hoja: razón, empleado, hora y cantidad.</p>'+
+    '</div>';
+
+  document.getElementById('tab-cashlogy').innerHTML=h;
+}
+
+function gBill(){
+  var v=parseFloat(document.getElementById('bim')?.value||0);
+  S.bi=v;S.ba=v>0&&v<50;sv();rCash();
+  if(S.ba)alert('⚠️ El cajón azul tiene menos de 50€.\nComunicar a gerencia inmediatamente.');
+}
+
+function rRec(){
+  var t=today();var recs=RC.filter(function(r){return r.fecha===t;});
+  var opts=PRV.map(function(p){return '<option>'+p+'</option>';}).join('');
+  var h='<div class="rf"><h3>&#x1F4E6; Registrar recepción de pedido</h3>'+
+    '<div class="rg">'+
+    '<div class="rfl"><label>Proveedor</label><select id="rp"><option value="">Seleccionar...</option>'+opts+'</select></div>'+
+    '<div class="rfl"><label>Turno</label><select id="rt"><option value="mañana">Mañana</option><option value="tarde">Tarde</option></select></div>'+
+    '<div class="rfl"><label>Nº albarán / pedido</label><input type="text" id="ra" placeholder="Ref..."></div>'+
+    '<div class="rfl"><label>Recibido por</label><input type="text" id="re" placeholder="Nombre..."></div>'+
+    '<div class="rfl fu"><label>Observaciones / incidencias</label><textarea id="ro" placeholder="Faltante, defecto, código incorrecto, producto nuevo sin alta..."></textarea></div>'+
+    '</div>'+
+    '<div class="al alw" style="margin-bottom:.5rem">&#9888; <span><strong>Durante la recepción: prohibido el móvil personal.</strong> Defecto o falta → foto y comunicar a gerencia. Producto nuevo sin alta → avisar antes de continuar. Si no finaliza antes del cambio → avisar al compañero.</span></div>'+
+    '<div class="rbs">'+
+    '<button class="bok" onclick="addR(\'ok\')">&#10003; Recepción correcta</button>'+
+    '<button class="bnk" onclick="addR(\'nok\')">&#10005; Con incidencia</button>'+
+    '</div></div>'+
+    '<div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:.4rem">Recepciones de hoy ('+recs.length+')</div>';
+
+  if(!recs.length){
+    h+='<div class="empty"><span class="empty-icon">&#x1F4E6;</span>Sin recepciones registradas hoy</div>';
+  }else{
+    h+=recs.map(function(r,i){
+      return '<div class="ri">'+
+        '<div class="rih">'+
+        '<div><strong style="font-size:13px">'+r.prov+'</strong>'+(r.alb?'<span style="font-size:11px;color:var(--text3);margin-left:.3rem">#'+r.alb+'</span>':'')+'</div>'+
+        '<div style="display:flex;align-items:center;gap:.3rem">'+
+        '<span class="rp p'+(r.est==='ok'?'ok':'nk')+'">'+(r.est==='ok'?'✓ Correcta':'✗ Incidencia')+'</span>'+
+        '<button class="bd" onclick="dR('+i+')">&#x1F5D1;</button>'+
+        '</div></div>'+
+        '<div class="rd">'+r.tur+' · '+r.hora+' · '+(r.emp||'—')+(r.obs?'<div style="margin-top:2px;color:var(--red)">&#9888; '+r.obs+'</div>':'')+'</div>'+
+        '</div>';
+    }).join('');
+  }
+  document.getElementById('tab-recepciones').innerHTML=h;
+}
+
+function addR(est){
+  var pv=document.getElementById('rp')?.value;
+  if(!pv){alert('Selecciona el proveedor');return;}
+  RC.unshift({
+    id:Date.now(),fecha:today(),prov:pv,
+    tur:document.getElementById('rt')?.value,
+    alb:document.getElementById('ra')?.value||'',
+    emp:document.getElementById('re')?.value||'',
+    obs:document.getElementById('ro')?.value||'',
+    est:est,
+    hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})
+  });
+  sv();rRec();
+}
+
+function dR(i){
+  var t=today();var tr=RC.filter(function(r){return r.fecha===t;});
+  var gi=RC.indexOf(tr[i]);if(gi>-1)RC.splice(gi,1);sv();rRec();
+}
+
+function gReg(tipo){
+  var em=document.getElementById('emp')?.value||'Sin nombre';
+  var tr=document.getElementById('trn')?.value;
+  var secs=tipo==='semanal'?SS:SD;var w=tipo==='semanal';
+  var done,pend;
+  if(w){
+    done=secs.reduce(function(a,s){return a.concat(s.ta.filter(function(t){return !!(S.wch&&S.wch[t.id]);}).map(function(t){var com=S.wcom&&S.wcom[t.id]?S.wcom[t.id]:'';return t.tx+(com?' → '+com:'');}));},  []);
+    pend=secs.reduce(function(a,s){return a.concat(s.ta.filter(function(t){return !(S.wch&&S.wch[t.id]);}).map(function(t){var com=S.wcom&&S.wcom[t.id]?S.wcom[t.id]:'';return t.tx+(com?' → '+com:'');}));},  []);
+  } else {
+    done=secs.reduce(function(a,s){return a.concat(s.ta.filter(function(t){return !!(S.ch&&S.ch[t.id]);}).map(function(t){return t.tx;}));},  []);
+    pend=secs.reduce(function(a,s){return a.concat(s.ta.filter(function(t){return !(S.ch&&S.ch[t.id]);}).map(function(t){return t.tx;}));},  []);
+  }
+  var tot=secs.reduce(function(a,s){return a+s.ta.length;},0);
+  var semLabel=w?'Semana del '+(S.semana||weekKey()):'';
+  var rec=RC.filter(function(r){return r.fecha===today();});
+  LG.unshift({
+    id:Date.now(),tipo:tipo,
+    semana:semLabel||'',
+    fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
+    hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
+    em:em,tr:tr,comp:done.length,tot:tot,he:done,pe:pend,
+    rec:rec.length,rnk:rec.filter(function(r){return r.est==='nok';}).length
+  });
+  if(LG.length>90)LG=LG.slice(0,90);
+  sv();
+  go('registro',document.querySelectorAll('.tab')[5]);
+  rLog();
+}
+
+function rLog(){
+  var sr=document.getElementById('sr');var ll=document.getElementById('ll');
+  if(!sr||!ll)return;
+  if(!LG.length){
+    sr.innerHTML='';
+    ll.innerHTML='<div class="empty"><span class="empty-icon">&#x1F4CB;</span>Aún no hay registros guardados.</div>';
+    return;
+  }
+  var pct=Math.round(LG.reduce(function(a,e){return a+(e.comp/e.tot);},0)/LG.length*100);
+  sr.innerHTML=
+    '<div class="st2"><div class="sn">'+LG.length+'</div><div class="sl">Turnos</div></div>'+
+    '<div class="st2"><div class="sn">'+LG.reduce(function(a,e){return a+e.comp;},0)+'</div><div class="sl">Tareas hechas</div></div>'+
+    '<div class="st2"><div class="sn">'+pct+'%</div><div class="sl">Cumplimiento</div></div>'+
+    '<div class="st2"><div class="sn">'+LG.reduce(function(a,e){return a+(e.rec||0);},0)+'</div><div class="sl">Recepciones</div></div>';
+  ll.innerHTML=LG.slice(0,60).map(function(e){
+    var pill=e.tr==='mañana'?'tp-m':(e.tr==='tarde'?'tp-t':'tp-c');
+    return '<div class="le">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">'+
+      '<h4>'+(e.tipo==='semanal'?'📅':'📋')+' '+e.em+(e.tipo!=='semanal'?'<span class="turno-pill '+pill+'">'+e.tr+'</span>':'')+'</h4>'+
+      '<span style="font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;background:var(--green-bg);color:var(--green)">'+e.comp+'/'+e.tot+'</span>'+
+      '</div>'+
+      '<div class="lm">'+(e.semana?e.semana+' · ':'')+e.fecha+' · '+e.hora+(e.rec?' · '+e.rec+' recepción'+(e.rec>1?'es':'')+(e.rnk?' ('+e.rnk+' incidencia'+(e.rnk>1?'s':'')+')':''):'')+' </div>'+
+      (e.he&&e.he.length?'<p class="lp"><span style="color:var(--green)">✓</span> '+e.he.slice(0,5).join(' · ')+(e.he.length>5?' +'+( e.he.length-5)+' más':'')+'</p>':'')+
+      (e.pe&&e.pe.length?'<p class="lp"><span style="color:var(--red)">✗</span> '+e.pe.slice(0,3).join(' · ')+(e.pe.length>3?' +'+( e.pe.length-3)+' pendientes':'')+'</p>':'')+
+      '<button onclick="dL('+e.id+')" style="margin-top:.35rem;font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;font-family:inherit">&#x1F5D1; Eliminar</button>'+
+      '</div>';
+  }).join('');
+}
+
+function dL(id){LG=LG.filter(function(e){return e.id!==id;});sv();rLog();}
+
+function prog(){
+  var all=SD.reduce(function(a,s){return a.concat(s.ta);},  []).concat(SS.reduce(function(a,s){return a.concat(s.ta);},  []));
+  var done=all.filter(function(t){return !!(S.ch&&(S.ch[t.id]||S.ch['w_'+t.id]));}).length;
+  var el=document.getElementById('ptxt');var b=document.getElementById('pbar');
+  if(el)el.textContent=done+' / '+all.length;
+  if(b)b.style.width=Math.round(done/all.length*100)+'%';
+}
+
+function rDesconexion(){
+  var DM=S.dm||[];
+  var today=todayS();
+  var todayRecs=DM.filter(function(r){return r.fecha===today;});
+  var h='<div class="rf">'+
+    '<h3>&#x1F4F5; Desconexión digital invertida</h3>'+
+    '<p style="font-size:12px;color:var(--text3);margin-bottom:.75rem;line-height:1.5">Cada empleado registra el depósito y la retirada de su móvil personal de la caja del almacén. — §20.3</p>'+
+    '<div class="rg" style="grid-template-columns:1fr 1fr 1fr;gap:.4rem;margin-bottom:.5rem">'+
+    '<div class="rfl"><label>Empleado/a</label><input type="text" id="dm-emp" placeholder="Nombre..." value="'+(S.em||'')+'"></div>'+
+    '<div class="rfl"><label>Acción</label>'+
+    '<select id="dm-accion">'+
+    '<option value="deposito">&#x1F4E5; Depósito — entrada de turno</option>'+
+    '<option value="retirada">&#x1F4E4; Retirada — fin de turno</option>'+
+    '</select></div>'+
+    '<div class="rfl"><label>Hora</label><input type="time" id="dm-hora" value="'+horaActual()+'"></div>'+
+    '</div>'+
+    '<button class="bsave" style="margin-top:0" onclick="addDM()">&#x2713; Registrar</button>'+
+    '</div>'+
+    '<div style="font-size:12px;font-weight:600;color:var(--text3);margin:.6rem 0 .4rem">Registros de hoy ('+todayRecs.length+')</div>';
+  if(!todayRecs.length){
+    h+='<div class="empty"><span class="empty-icon">&#x1F4F5;</span>Sin registros hoy</div>';
+  }else{
+    var iconMap={deposito:'📥',retirada:'📤'};
+    var labelMap={deposito:'Depósito — entrada de turno',retirada:'Retirada — fin de turno'};
+    var colorMap={deposito:'pok',retirada:'pnk'};
+    h+=todayRecs.map(function(r,i){
+      return '<div class="ri">'+
+        '<div class="rih">'+
+        '<div><strong style="font-size:13px">'+r.emp+'</strong></div>'+
+        '<div style="display:flex;align-items:center;gap:.3rem">'+
+        '<span class="rp '+(colorMap[r.accion]||'rp')+'">'+( iconMap[r.accion]||'')+'  '+(labelMap[r.accion]||r.accion)+'</span>'+
+        '<button class="bd" onclick="dDM('+i+')">&#x1F5D1;</button>'+
+        '</div></div>'+
+        '<div class="rd">'+r.hora+'</div>'+
+        '</div>';
+    }).join('');
+  }
+  document.getElementById('tab-desconexion').innerHTML=h;
+}
+
+function horaActual(){
+  var d=new Date();
+  return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+}
+
+function todayS(){return new Date().toISOString().slice(0,10);}
+
+function addDM(){
+  var emp=document.getElementById('dm-emp')?.value||'Sin nombre';
+  var accion=document.getElementById('dm-accion')?.value||'deposito';
+  var hora=document.getElementById('dm-hora')?.value||horaActual();
+  if(!S.dm)S.dm=[];
+  S.dm.unshift({id:Date.now(),fecha:todayS(),emp:emp,accion:accion,hora:hora});
+  if(S.dm.length>200)S.dm=S.dm.slice(0,200);
+  sv();rDesconexion();
+}
+
+function dDM(i){
+  var t=todayS();
+  var tr=S.dm?S.dm.filter(function(r){return r.fecha===t;}):[];
+  var gi=S.dm?S.dm.indexOf(tr[i]):-1;
+  if(gi>-1)S.dm.splice(gi,1);
+  sv();rDesconexion();
+}
+
+function go(tab,el){
+  CUR=tab;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  if(el)el.classList.add('active');
+  ['diarias','cashlogy','recepciones','semanales','desconexion','registro'].forEach(function(t){
+    var e=document.getElementById('tab-'+t);if(e)e.style.display=t===tab?'block':'none';
+  });
+  if(tab==='diarias')rDiarias();
+  else if(tab==='cashlogy')rCash();
+  else if(tab==='recepciones')rRec();
+  else if(tab==='semanales')rSem();
+  else if(tab==='desconexion')rDesconexion();
+  else rLog();
+}
+
+function resetSem(){
+  if(!confirm('¿Iniciar nueva semana?\n\nSe guardará un snapshot de la semana actual en el Registro y se borrarán los checks y comentarios semanales.'))return;
+  autoGuardarSemana();
+  S.wch={};S.wcom={};S.wche={};S.semana=weekKey();
+  sv();
+  go(CUR,document.querySelector('.tab.active'));
+  if(CUR==='semanales')rSem();
+}
+
+function resetDia(){
+  if(!confirm('¿Empezar nuevo día?\n\nSe borran los checks del turno.\nEl registro histórico y las recepciones guardadas se mantienen.'))return;
+  var em=document.getElementById('emp')?.value||'';
+  var tr=document.getElementById('trn')?.value||'mañana';
+  S={date:today(),ch:{},mo:S.mo||{},em:em,tr:tr};
+  OS={};sv();
+  go(CUR,document.querySelector('.tab.active'));
+}
+
+function initDates(){
+  var d=new Date();
+  var dias=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  var meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var ftxt=dias[d.getDay()]+', '+d.getDate()+' de '+meses[d.getMonth()]+' de '+d.getFullYear();
+  var bfch=d.getDate()+' '+meses[d.getMonth()].slice(0,3)+'. '+d.getFullYear();
+  var f=document.getElementById('ftxt');var b=document.getElementById('bfch');
+  if(f)f.textContent=ftxt;if(b)b.textContent=bfch;
+}
+
+load();initDates();
+document.getElementById('emp').value=S.em||'';
+document.getElementById('trn').value=S.tr||'mañana';
+rDiarias();
+</script>
+</body>
+</html>
