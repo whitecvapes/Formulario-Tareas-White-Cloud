@@ -951,6 +951,33 @@ load();initDates();
 document.getElementById('emp').value=S.em||'';
 document.getElementById('trn').value=S.tr||'mañana';
 rDiarias();
+// Si no hay estado de tubos local, intentar recuperar el último de Sheets
+if(!S.mo || Object.keys(S.mo).length===0){
+  fetch(SHEETS_URL)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      // Buscar el último registro de tipo cashlogy
+      var last=null;
+      for(var i=0;i<data.length;i++){
+        if(data[i].tipo==='cashlogy'){last=data[i];break;}
+      }
+      if(last && last.he && last.he.length){
+        // he contiene strings como "0,01€: 3 tubos"
+        if(!S.mo)S.mo={};
+        last.he.forEach(function(entry){
+          MON.forEach(function(mn){
+            if(entry.indexOf(mn.l+':')===0){
+              var m=entry.match(/:\s*(\d+)/);
+              if(m)S.mo[mn.id]=parseInt(m[1]);
+            }
+          });
+        });
+        sv();
+        rCash();
+      }
+    })
+    .catch(function(){});
+}
 </script>
 </body>
 </html>
