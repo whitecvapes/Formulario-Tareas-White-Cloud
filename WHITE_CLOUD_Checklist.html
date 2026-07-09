@@ -323,6 +323,18 @@ const SS=[{id:'sem',ic:'📅',cl:'#37474f',ti:'Tareas semanales',ta:[
 
 let S={},OS={},LG=[],RC=[],CUR='diarias';
 const K='wc5_';
+const SHEETS_URL='https://script.google.com/macros/s/AKfycbxwXZ1n6vDv5qoh90kytNlDHlwgVKouiEywhFUamIQ5wp3B9AVqKgPAkXa7MDG_NT9O/exec';
+
+function sendToSheets(entry){
+  try{
+    fetch(SHEETS_URL,{
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(entry)
+    }).catch(function(){});
+  }catch(e){}
+}
 
 function today(){return new Date().toISOString().slice(0,10);}
 
@@ -619,14 +631,14 @@ function gRegCash(){
   var alertas=MON.filter(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return q<=mn.warn;}).map(function(mn){return mn.l;});
   var cshTasks=[{id:'csh1'},{id:'csh2'},{id:'csh3'}];
   var checks=cshTasks.filter(function(t){return !!(S.ch&&S.ch[t.id]);}).length;
-  LG.unshift({
-    id:Date.now(),tipo:'cashlogy',
+  var entryCash={id:Date.now(),tipo:'cashlogy',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
     em:em,tr:tr,comp:checks,tot:3,he:tubos,pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:['Sin alertas'],
-    bi:S.bi||0,ba:S.ba||false,semana:'',rec:0,rnk:0
-  });
+    bi:S.bi||0,ba:S.ba||false,semana:'',rec:0,rnk:0};
+  LG.unshift(entryCash);
   if(LG.length>120)LG=LG.slice(0,120);
+  sendToSheets(entryCash);
   sv();
   alert('✓ Estado de Cashlogy guardado correctamente.');
 }
@@ -636,15 +648,15 @@ function gRegRec(){
   var tr=document.getElementById('trn')?.value;
   var recs=RC.filter(function(r){return r.fecha===today();});
   if(!recs.length){alert('No hay recepciones registradas hoy.');return;}
-  LG.unshift({
-    id:Date.now(),tipo:'recepciones',
+  var entryRec={id:Date.now(),tipo:'recepciones',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
     em:em,tr:tr,comp:recs.filter(function(r){return r.est==='ok';}).length,tot:recs.length,
     he:recs.map(function(r){return r.prov+(r.alb?' #'+r.alb:'')+(r.est==='ok'?' ✓':' ✗'+(r.obs?' ('+r.obs+')':''));}),
-    pe:[],semana:'',rec:recs.length,rnk:recs.filter(function(r){return r.est==='nok';}).length
-  });
+    pe:[],semana:'',rec:recs.length,rnk:recs.filter(function(r){return r.est==='nok';}).length};
+  LG.unshift(entryRec);
   if(LG.length>120)LG=LG.slice(0,120);
+  sendToSheets(entryRec);
   sv();
   alert('✓ Recepciones del turno guardadas correctamente.');
 }
@@ -654,15 +666,15 @@ function gRegDes(){
   var tr=document.getElementById('trn')?.value;
   var dm=(S.dm||[]).filter(function(r){return r.fecha===todayS();});
   if(!dm.length){alert('No hay registros de desconexión hoy.');return;}
-  LG.unshift({
-    id:Date.now(),tipo:'desconexion',
+  var entryDes={id:Date.now(),tipo:'desconexion',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
     em:em,tr:tr,comp:dm.length,tot:dm.length,
     he:dm.map(function(r){return (r.accion==='deposito'?'📥':'📤')+' '+r.emp+' · '+r.hora;}),
-    pe:[],semana:'',rec:0,rnk:0
-  });
+    pe:[],semana:'',rec:0,rnk:0};
+  LG.unshift(entryDes);
   if(LG.length>120)LG=LG.slice(0,120);
+  sendToSheets(entryDes);
   sv();
   alert('✓ Desconexión digital guardada correctamente.');
 }
@@ -682,37 +694,42 @@ function gReg(tipo){
   var tot=secs.reduce(function(a,s){return a+s.ta.length;},0);
   var semLabel=w?'Semana del '+(S.semana||weekKey()):'';
   var rec=RC.filter(function(r){return r.fecha===today();});
-  LG.unshift({
+  var entryMain={
     id:Date.now(),tipo:tipo,
     semana:semLabel||'',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
     em:em,tr:tr,comp:done.length,tot:tot,he:done,pe:pend,
     rec:rec.length,rnk:rec.filter(function(r){return r.est==='nok';}).length
-  });
-  if(LG.length>90)LG=LG.slice(0,90);
+  };
+  LG.unshift(entryMain);
+  if(LG.length>120)LG=LG.slice(0,120);
+  sendToSheets(entryMain);
   sv();
   go('registro',document.querySelectorAll('.tab')[5]);
   rLog();
 }
 
-function rLog(){
+var SH_LOG=[];
+
+function renderLogEntries(data){
   var sr=document.getElementById('sr');var ll=document.getElementById('ll');
   if(!sr||!ll)return;
-  if(!LG.length){
+  if(!data.length){
     sr.innerHTML='';
-    ll.innerHTML='<div class="empty"><span class="empty-icon">&#x1F4CB;</span>Aún no hay registros guardados.</div>';
+    ll.innerHTML='<div class="empty"><span class="empty-icon">&#x1F4CB;</span>Sin registros guardados todavia.</div>';
     return;
   }
-  var pct=Math.round(LG.reduce(function(a,e){return a+(e.comp/e.tot);},0)/LG.length*100);
+  var valid=data.filter(function(e){return e.tot>0;});
+  var pct=valid.length?Math.round(valid.reduce(function(a,e){return a+(e.comp/e.tot);},0)/valid.length*100):0;
   sr.innerHTML=
-    '<div class="st2"><div class="sn">'+LG.length+'</div><div class="sl">Turnos</div></div>'+
-    '<div class="st2"><div class="sn">'+LG.reduce(function(a,e){return a+e.comp;},0)+'</div><div class="sl">Tareas hechas</div></div>'+
+    '<div class="st2"><div class="sn">'+data.length+'</div><div class="sl">Turnos</div></div>'+
+    '<div class="st2"><div class="sn">'+data.reduce(function(a,e){return a+e.comp;},0)+'</div><div class="sl">Tareas hechas</div></div>'+
     '<div class="st2"><div class="sn">'+pct+'%</div><div class="sl">Cumplimiento</div></div>'+
-    '<div class="st2"><div class="sn">'+LG.reduce(function(a,e){return a+(e.rec||0);},0)+'</div><div class="sl">Recepciones</div></div>';
-  ll.innerHTML=LG.slice(0,60).map(function(e){
-    var tipoIcon={diario:'📋',semanal:'📅','semanal-auto':'📅',cashlogy:'💰',recepciones:'📦',desconexion:'📵'};
-    var tipoLabel={diario:'Diario',semanal:'Semanal','semanal-auto':'Semanal (auto)',cashlogy:'Cashlogy',recepciones:'Recepciones',desconexion:'Desconexión'};
+    '<div class="st2"><div class="sn">'+data.reduce(function(a,e){return a+(e.rec||0);},0)+'</div><div class="sl">Recepciones</div></div>';
+  var tipoIcon={diario:'📋',semanal:'📅','semanal-auto':'📅',cashlogy:'💰',recepciones:'📦',desconexion:'📵'};
+  var tipoLabel={diario:'Diario',semanal:'Semanal','semanal-auto':'Semanal (auto)',cashlogy:'Cashlogy',recepciones:'Recepciones',desconexion:'Desconexion'};
+  ll.innerHTML=data.slice(0,120).map(function(e){
     var pill=e.tr==='mañana'?'tp-m':(e.tr==='tarde'?'tp-t':'tp-c');
     var showTurno=e.tipo==='diario'||e.tipo==='cashlogy'||e.tipo==='recepciones'||e.tipo==='desconexion';
     return '<div class="le">'+
@@ -720,15 +737,35 @@ function rLog(){
       '<h4>'+(tipoIcon[e.tipo]||'📋')+' '+(tipoLabel[e.tipo]||e.tipo)+' — '+e.em+(showTurno&&e.tr?'<span class="turno-pill '+pill+'">'+e.tr+'</span>':'')+'</h4>'+
       '<span style="font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;background:var(--green-bg);color:var(--green)">'+e.comp+'/'+e.tot+'</span>'+
       '</div>'+
-      '<div class="lm">'+(e.semana?e.semana+' · ':'')+e.fecha+' · '+e.hora+(e.tipo==='recepciones'&&e.rec?' · '+e.rec+' recepción'+(e.rec>1?'es':'')+(e.rnk?' ('+e.rnk+' con incidencia)':''):'')+' </div>'+
-      (e.he&&e.he.length?'<p class="lp"><span style="color:var(--green)">✓</span> '+e.he.slice(0,5).join(' · ')+(e.he.length>5?' +'+( e.he.length-5)+' más':'')+'</p>':'')+
-      (e.pe&&e.pe.length?'<p class="lp"><span style="color:var(--red)">✗</span> '+e.pe.slice(0,3).join(' · ')+(e.pe.length>3?' +'+( e.pe.length-3)+' pendientes':'')+'</p>':'')+
-      '<button onclick="dL('+e.id+')" style="margin-top:.35rem;font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;font-family:inherit">&#x1F5D1; Eliminar</button>'+
+      '<div class="lm">'+(e.semana?e.semana+' · ':'')+e.fecha+' · '+e.hora+(e.tipo==='recepciones'&&e.rec?' · '+e.rec+' recepcion'+(e.rec>1?'es':'')+(e.rnk?' ('+e.rnk+' con incidencia)':''):'')+' </div>'+
+      (e.he&&e.he.length?'<p class="lp"><span style="color:var(--green)">✓</span> '+e.he.slice(0,5).join(' · ')+(e.he.length>5?' +'+(e.he.length-5)+' mas':'')+'</p>':'')+
+      (e.pe&&e.pe.length?'<p class="lp"><span style="color:var(--red)">✗</span> '+e.pe.slice(0,3).join(' · ')+(e.pe.length>3?' +'+(e.pe.length-3)+' pendientes':'')+'</p>':'')+
       '</div>';
   }).join('');
 }
 
-function dL(id){LG=LG.filter(function(e){return e.id!==id;});sv();rLog();}
+function rLog(){
+  var sr=document.getElementById('sr');var ll=document.getElementById('ll');
+  if(!sr||!ll)return;
+  ll.innerHTML='<div class="empty"><span class="empty-icon" style="font-size:20px">⏳</span>Cargando registros...</div>';
+  sr.innerHTML='';
+  fetch(SHEETS_URL)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      SH_LOG=data;
+      renderLogEntries(data);
+    })
+    .catch(function(){
+      renderLogEntries(LG);
+      var ll2=document.getElementById('ll');
+      if(ll2)ll2.innerHTML+='<div class="al alw" style="margin-top:.5rem">&#9888; Sin conexion — mostrando registros locales</div>';
+    });
+}
+
+function dL(id){
+  LG=LG.filter(function(e){return e.id!==id;});
+  sv();rLog();
+}
 
 function prog(){
   var all=SD.reduce(function(a,s){return a.concat(s.ta);},  []).concat(SS.reduce(function(a,s){return a.concat(s.ta);},  []));
