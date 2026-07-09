@@ -856,8 +856,11 @@ function rAyuda(){
     {ic:"💰",ti:"Cashlogy — qué registra cada botón",body:
       "<p><strong>Verificación Cashlogy:</strong> tres checks que confirman que se ha revisado el nivel, recargado si era necesario y traspasado billetes al stacker.</p>"+
       "<p style=\"margin-top:.4rem\"><strong>Control de tubos:</strong> ajusta con +/− el número de tubos por denominación. Naranja = stock bajo · Rojo = urgente, avisar a gerencia.</p>"+
-      "<p style=\"margin-top:.4rem\"><strong>Cajón azul:</strong> introduce el importe de billetes y pulsa Registrar. Si hay menos de 50€ salta alerta automática.</p>"+
-      "<p style=\"margin-top:.5rem\"><strong>Al finalizar</strong> pulsa <strong>Guardar estado Cashlogy</strong>.</p>"
+      "<p style=\"margin-top:.25rem\">Los valores de tubos <strong>se mantienen automáticamente</strong> entre turnos y reinicios diarios. Si un empleado ajusta una cantidad, el siguiente turno la verá actualizada sin necesidad de volver a introducirla.</p>"+
+      "<p style=\"margin-top:.25rem\">Si se abre la app en un dispositivo nuevo o con caché limpio, la app recupera automáticamente los últimos valores guardados desde Google Sheets (del último guardado de Cashlogy).</p>"+
+      "<p style=\"margin-top:.4rem\"><strong>Cajón azul:</strong> introduce el importe de billetes disponibles y pulsa Registrar. Si hay menos de 50€ salta alerta automática para avisar a gerencia.</p>"+
+      "<p style=\"margin-top:.25rem\">El importe del cajón azul también <strong>se mantiene entre turnos y reinicios</strong> y se recupera de Sheets en dispositivos nuevos, igual que los tubos. Solo cambia cuando se introduce un nuevo importe manualmente.</p>"+
+      "<p style=\"margin-top:.5rem\"><strong>Al finalizar</strong> pulsa <strong>Guardar estado Cashlogy</strong> para dejar constancia en el historial y sincronizar los valores con todos los dispositivos.</p>"
     },
     {ic:"📦",ti:"Recepciones — flujo completo",body:
       "<p>Cada vez que llega un pedido rellena el formulario: proveedor · turno · nº albarán · quién lo recibe · observaciones.</p>"+
