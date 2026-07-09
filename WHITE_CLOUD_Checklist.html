@@ -207,6 +207,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <button class="tab" onclick="go('semanales',this)">&#x1F4C5; Semanales</button>
   <button class="tab" onclick="go('desconexion',this)">&#x1F4F5; Desconexion</button>
   <button class="tab" onclick="go('registro',this)">&#x1F4CB; Registro</button>
+  <button class="tab" onclick="go('ayuda',this)">&#x2753; Ayuda</button>
 </div>
 
 <div id="tab-diarias"></div>
@@ -218,6 +219,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="sr" id="sr"></div>
   <div id="ll"></div>
 </div>
+<div id="tab-ayuda" style="display:none"></div>
 
 </div><!-- .app -->
 
@@ -542,6 +544,7 @@ function rCash(){
     '<p style="font-size:11px;color:var(--text3);margin-top:.25rem">Alerta automática si el importe es inferior a 50€. Todo uso del cajón azul debe quedar registrado en la hoja: razón, empleado, hora y cantidad.</p>'+
     '</div>';
 
+  h+='<button class="bsave" style="margin-top:.6rem" onclick="gRegCash()">&#x1F4BE; Guardar estado Cashlogy</button>';
   document.getElementById('tab-cashlogy').innerHTML=h;
 }
 
@@ -584,6 +587,7 @@ function rRec(){
         '</div>';
     }).join('');
   }
+  h+='<button class="bsave" style="margin-top:.6rem" onclick="gRegRec()">&#x1F4BE; Cerrar recepciones del turno</button>';
   document.getElementById('tab-recepciones').innerHTML=h;
 }
 
@@ -605,6 +609,62 @@ function addR(est){
 function dR(i){
   var t=today();var tr=RC.filter(function(r){return r.fecha===t;});
   var gi=RC.indexOf(tr[i]);if(gi>-1)RC.splice(gi,1);sv();rRec();
+}
+
+function gRegCash(){
+  var em=document.getElementById('emp')?.value||'Sin nombre';
+  var tr=document.getElementById('trn')?.value;
+  var m=S.mo||{};
+  var tubos=MON.map(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return mn.l+': '+q+' tubo'+(q!==1?'s':'');});
+  var alertas=MON.filter(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return q<=mn.warn;}).map(function(mn){return mn.l;});
+  var cshTasks=[{id:'csh1'},{id:'csh2'},{id:'csh3'}];
+  var checks=cshTasks.filter(function(t){return !!(S.ch&&S.ch[t.id]);}).length;
+  LG.unshift({
+    id:Date.now(),tipo:'cashlogy',
+    fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
+    hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
+    em:em,tr:tr,comp:checks,tot:3,he:tubos,pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:['Sin alertas'],
+    bi:S.bi||0,ba:S.ba||false,semana:'',rec:0,rnk:0
+  });
+  if(LG.length>120)LG=LG.slice(0,120);
+  sv();
+  alert('✓ Estado de Cashlogy guardado correctamente.');
+}
+
+function gRegRec(){
+  var em=document.getElementById('emp')?.value||'Sin nombre';
+  var tr=document.getElementById('trn')?.value;
+  var recs=RC.filter(function(r){return r.fecha===today();});
+  if(!recs.length){alert('No hay recepciones registradas hoy.');return;}
+  LG.unshift({
+    id:Date.now(),tipo:'recepciones',
+    fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
+    hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
+    em:em,tr:tr,comp:recs.filter(function(r){return r.est==='ok';}).length,tot:recs.length,
+    he:recs.map(function(r){return r.prov+(r.alb?' #'+r.alb:'')+(r.est==='ok'?' ✓':' ✗'+(r.obs?' ('+r.obs+')':''));}),
+    pe:[],semana:'',rec:recs.length,rnk:recs.filter(function(r){return r.est==='nok';}).length
+  });
+  if(LG.length>120)LG=LG.slice(0,120);
+  sv();
+  alert('✓ Recepciones del turno guardadas correctamente.');
+}
+
+function gRegDes(){
+  var em=document.getElementById('emp')?.value||'Sin nombre';
+  var tr=document.getElementById('trn')?.value;
+  var dm=(S.dm||[]).filter(function(r){return r.fecha===todayS();});
+  if(!dm.length){alert('No hay registros de desconexión hoy.');return;}
+  LG.unshift({
+    id:Date.now(),tipo:'desconexion',
+    fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
+    hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
+    em:em,tr:tr,comp:dm.length,tot:dm.length,
+    he:dm.map(function(r){return (r.accion==='deposito'?'📥':'📤')+' '+r.emp+' · '+r.hora;}),
+    pe:[],semana:'',rec:0,rnk:0
+  });
+  if(LG.length>120)LG=LG.slice(0,120);
+  sv();
+  alert('✓ Desconexión digital guardada correctamente.');
 }
 
 function gReg(tipo){
@@ -651,13 +711,16 @@ function rLog(){
     '<div class="st2"><div class="sn">'+pct+'%</div><div class="sl">Cumplimiento</div></div>'+
     '<div class="st2"><div class="sn">'+LG.reduce(function(a,e){return a+(e.rec||0);},0)+'</div><div class="sl">Recepciones</div></div>';
   ll.innerHTML=LG.slice(0,60).map(function(e){
+    var tipoIcon={diario:'📋',semanal:'📅','semanal-auto':'📅',cashlogy:'💰',recepciones:'📦',desconexion:'📵'};
+    var tipoLabel={diario:'Diario',semanal:'Semanal','semanal-auto':'Semanal (auto)',cashlogy:'Cashlogy',recepciones:'Recepciones',desconexion:'Desconexión'};
     var pill=e.tr==='mañana'?'tp-m':(e.tr==='tarde'?'tp-t':'tp-c');
+    var showTurno=e.tipo==='diario'||e.tipo==='cashlogy'||e.tipo==='recepciones'||e.tipo==='desconexion';
     return '<div class="le">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">'+
-      '<h4>'+(e.tipo==='semanal'?'📅':'📋')+' '+e.em+(e.tipo!=='semanal'?'<span class="turno-pill '+pill+'">'+e.tr+'</span>':'')+'</h4>'+
+      '<h4>'+(tipoIcon[e.tipo]||'📋')+' '+(tipoLabel[e.tipo]||e.tipo)+' — '+e.em+(showTurno&&e.tr?'<span class="turno-pill '+pill+'">'+e.tr+'</span>':'')+'</h4>'+
       '<span style="font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;background:var(--green-bg);color:var(--green)">'+e.comp+'/'+e.tot+'</span>'+
       '</div>'+
-      '<div class="lm">'+(e.semana?e.semana+' · ':'')+e.fecha+' · '+e.hora+(e.rec?' · '+e.rec+' recepción'+(e.rec>1?'es':'')+(e.rnk?' ('+e.rnk+' incidencia'+(e.rnk>1?'s':'')+')':''):'')+' </div>'+
+      '<div class="lm">'+(e.semana?e.semana+' · ':'')+e.fecha+' · '+e.hora+(e.tipo==='recepciones'&&e.rec?' · '+e.rec+' recepción'+(e.rec>1?'es':'')+(e.rnk?' ('+e.rnk+' con incidencia)':''):'')+' </div>'+
       (e.he&&e.he.length?'<p class="lp"><span style="color:var(--green)">✓</span> '+e.he.slice(0,5).join(' · ')+(e.he.length>5?' +'+( e.he.length-5)+' más':'')+'</p>':'')+
       (e.pe&&e.pe.length?'<p class="lp"><span style="color:var(--red)">✗</span> '+e.pe.slice(0,3).join(' · ')+(e.pe.length>3?' +'+( e.pe.length-3)+' pendientes':'')+'</p>':'')+
       '<button onclick="dL('+e.id+')" style="margin-top:.35rem;font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;font-family:inherit">&#x1F5D1; Eliminar</button>'+
@@ -712,6 +775,7 @@ function rDesconexion(){
         '</div>';
     }).join('');
   }
+  h+='<button class="bsave" style="margin-top:.6rem" onclick="gRegDes()">&#x1F4BE; Cerrar desconexión del turno</button>';
   document.getElementById('tab-desconexion').innerHTML=h;
 }
 
@@ -740,11 +804,72 @@ function dDM(i){
   sv();rDesconexion();
 }
 
+function rAyuda(){
+  var secs=[
+    {ic:"❓",ti:"¿Cómo funciona esta app?",body:
+      "<p>Esta app es el checklist de turno de White Cloud. Cada pestaña cubre un área distinta del turno. Los datos se guardan automáticamente en el dispositivo.</p>"+
+      "<p style=\"margin-top:.5rem\">Al empezar el turno escribe tu nombre en el campo <strong>Empleado/a</strong> y selecciona tu turno (mañana / tarde / completo).</p>"+
+      "<p style=\"margin-top:.5rem\">Al terminar el turno pulsa <strong>Nuevo día</strong> solo si eres el último en salir — limpia los checks para el siguiente turno.</p>"
+    },
+    {ic:"📋",ti:"Diarias — cómo y cuándo guardar",body:
+      "<p>Contiene todas las tareas del turno: Apertura · Reposición apertura · Turno de mañana · Cambio de turno · Turno de tarde · Reposición pre-cierre · Cierre.</p>"+
+      "<p style=\"margin-top:.5rem\">Marca cada tarea al realizarla. Al marcarla aparece la hora y un campo para escribir tu nombre.</p>"+
+      "<p style=\"margin-top:.5rem\"><strong>Al finalizar tu turno</strong> pulsa <strong>Guardar registro del turno</strong>. Guarda un snapshot con tareas hechas y pendientes. Si no lo pulsas no queda constancia en el historial.</p>"
+    },
+    {ic:"💰",ti:"Cashlogy — qué registra cada botón",body:
+      "<p><strong>Verificación Cashlogy:</strong> tres checks que confirman que se ha revisado el nivel, recargado si era necesario y traspasado billetes al stacker.</p>"+
+      "<p style=\"margin-top:.4rem\"><strong>Control de tubos:</strong> ajusta con +/− el número de tubos por denominación. Naranja = stock bajo · Rojo = urgente, avisar a gerencia.</p>"+
+      "<p style=\"margin-top:.4rem\"><strong>Cajón azul:</strong> introduce el importe de billetes y pulsa Registrar. Si hay menos de 50€ salta alerta automática.</p>"+
+      "<p style=\"margin-top:.5rem\"><strong>Al finalizar</strong> pulsa <strong>Guardar estado Cashlogy</strong>.</p>"
+    },
+    {ic:"📦",ti:"Recepciones — flujo completo",body:
+      "<p>Cada vez que llega un pedido rellena el formulario: proveedor · turno · nº albarán · quién lo recibe · observaciones.</p>"+
+      "<p style=\"margin-top:.5rem\">Pulsa <strong>Recepción correcta</strong> o <strong>Con incidencia</strong>. En caso de incidencia haz foto y comunica a gerencia.</p>"+
+      "<p style=\"margin-top:.5rem\">Se pueden registrar varios pedidos a lo largo del día.</p>"+
+      "<p style=\"margin-top:.5rem\"><strong>Al finalizar el turno</strong> pulsa <strong>Cerrar recepciones del turno</strong>.</p>"+
+      "<p style=\"margin-top:.4rem\">⚠️ Durante la recepción: móvil personal prohibido.</p>"
+    },
+    {ic:"📵",ti:"Desconexión digital — cómo registrar",body:
+      "<p>Cada empleado registra individualmente la entrada y salida de su móvil de la caja del almacén.</p>"+
+      "<p style=\"margin-top:.5rem\">Al llegar: nombre · acción <strong>Depósito — entrada de turno</strong> · hora · pulsa <strong>Registrar</strong>.</p>"+
+      "<p style=\"margin-top:.5rem\">Al salir: mismos pasos con <strong>Retirada — fin de turno</strong>.</p>"+
+      "<p style=\"margin-top:.5rem\"><strong>Al finalizar</strong> pulsa <strong>Cerrar desconexión del turno</strong>.</p>"
+    },
+    {ic:"📅",ti:"Semanales — reset automático y comentarios",body:
+      "<p>Las tareas semanales se comparten entre todos los turnos de la semana. Se resetean cada lunes automáticamente.</p>"+
+      "<p style=\"margin-top:.5rem\">Debajo de cada tarea hay un campo de comentarios para dejar nota al siguiente turno: hasta dónde se llegó, qué falta.</p>"+
+      "<p style=\"margin-top:.5rem\">Cada lunes se guarda un snapshot automático en el Registro y se limpian checks y comentarios.</p>"+
+      "<p style=\"margin-top:.5rem\">Pulsa <strong>Nueva semana</strong> para resetear manualmente. Pulsa <strong>Guardar snapshot semanal</strong> para guardar sin resetear.</p>"
+    },
+    {ic:"📊",ti:"Registro — qué aparece y cómo interpretarlo",body:
+      "<p>Guarda el historial de todos los snapshots de todas las pestañas. Cada entrada muestra tipo · empleado · turno · fecha · hora · tareas completadas.</p>"+
+      "<p style=\"margin-top:.4rem\">Tipos: 📋 Diario · 💰 Cashlogy · 📦 Recepciones · 📵 Desconexión · 📅 Semanal.</p>"+
+      "<p style=\"margin-top:.4rem\">Se conservan hasta 120 entradas. Puedes eliminar entradas con el botón 🗑️.</p>"+
+      "<p style=\"margin-top:.4rem\">⚠️ Los datos son locales al dispositivo. Si cambias de dispositivo o limpias el navegador, los registros se pierden.</p>"
+    },
+  ];
+
+  var h="<div style=\"font-size:13px;font-weight:600;color:var(--text2);margin-bottom:.6rem\">📖 Guía de uso — White Cloud Checklist</div>";
+
+  secs.forEach(function(sec,i){
+    var id="ayuda_"+i;
+    h+="<div class=\"sec\" style=\"margin-bottom:.5rem\">"+
+      "<div class=\"sh\" onclick=\"togSec('"+id+"')\">"+
+      "<div class=\"si\" style=\"background:var(--accent-bg);font-size:16px\">"+sec.ic+"</div>"+
+      "<span class=\"st\">"+sec.ti+"</span>"+
+      "<span class=\"sv op\" id=\"cv_"+id+"\">&#9660;</span>"+
+      "</div>"+
+      "<div class=\"tl\" id=\"tl_"+id+"\" style=\"padding:.75rem 1rem;font-size:13px;color:var(--text2);line-height:1.6\">"+sec.body+"</div>"+
+      "</div>";
+  });
+
+  document.getElementById("tab-ayuda").innerHTML=h;
+}
 function go(tab,el){
   CUR=tab;
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   if(el)el.classList.add('active');
-  ['diarias','cashlogy','recepciones','semanales','desconexion','registro'].forEach(function(t){
+  ['diarias','cashlogy','recepciones','semanales','desconexion','registro','ayuda'].forEach(function(t){
     var e=document.getElementById('tab-'+t);if(e)e.style.display=t===tab?'block':'none';
   });
   if(tab==='diarias')rDiarias();
@@ -752,11 +877,12 @@ function go(tab,el){
   else if(tab==='recepciones')rRec();
   else if(tab==='semanales')rSem();
   else if(tab==='desconexion')rDesconexion();
+  else if(tab==='ayuda')rAyuda();
   else rLog();
 }
 
 function resetSem(){
-  if(!confirm('¿Iniciar nueva semana?\n\nSe guardará un snapshot de la semana actual en el Registro y se borrarán los checks y comentarios semanales.'))return;
+  if(!confirm('¿Iniciar nueva semana?\n\nSe guardara un snapshot de la semana actual en el Registro y se borraran los checks y comentarios semanales.'))return;
   autoGuardarSemana();
   S.wch={};S.wcom={};S.wche={};S.semana=weekKey();
   sv();
@@ -765,17 +891,18 @@ function resetSem(){
 }
 
 function resetDia(){
-  if(!confirm('¿Empezar nuevo día?\n\nSe borran los checks del turno.\nEl registro histórico y las recepciones guardadas se mantienen.'))return;
+  if(!confirm('¿Empezar nuevo dia?\n\nSe borran los checks del turno.\nEl registro historico y las recepciones guardadas se mantienen.'))return;
   var em=document.getElementById('emp')?.value||'';
   var tr=document.getElementById('trn')?.value||'mañana';
-  S={date:today(),ch:{},mo:S.mo||{},em:em,tr:tr};
+  S={date:today(),ch:{},che:{},mo:S.mo||{},em:em,tr:tr,
+    wch:S.wch||{},wcom:S.wcom||{},wche:S.wche||{},semana:S.semana||weekKey()};
   OS={};sv();
   go(CUR,document.querySelector('.tab.active'));
 }
 
 function initDates(){
   var d=new Date();
-  var dias=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  var dias=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
   var meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   var ftxt=dias[d.getDay()]+', '+d.getDate()+' de '+meses[d.getMonth()]+' de '+d.getFullYear();
   var bfch=d.getDate()+' '+meses[d.getMonth()].slice(0,3)+'. '+d.getFullYear();
