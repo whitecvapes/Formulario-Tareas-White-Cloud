@@ -352,9 +352,9 @@ function load(){
     const semActual=weekKey();
     if(isLunes && S.semana && S.semana!==semActual){
       autoGuardarSemana();
-      S={date:t,ch:{},che:{},mo:S.mo||{},em:S.em||'',tr:S.tr||'mañana',wch:{},wcom:{},semana:semActual};
+      S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,em:S.em||'',tr:S.tr||'mañana',wch:{},wcom:{},semana:semActual};
     } else {
-      S={date:t,ch:{},che:{},mo:S.mo||{},em:S.em||'',tr:S.tr||'mañana',
+      S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,em:S.em||'',tr:S.tr||'mañana',
         wch:S.wch||{},wcom:S.wcom||{},semana:S.semana||semActual};
     }
     RC=RC.filter(x=>x.fecha===t);
@@ -931,7 +931,7 @@ function resetDia(){
   if(!confirm('¿Empezar nuevo dia?\n\nSe borran los checks del turno.\nEl registro historico y las recepciones guardadas se mantienen.'))return;
   var em=document.getElementById('emp')?.value||'';
   var tr=document.getElementById('trn')?.value||'mañana';
-  S={date:today(),ch:{},che:{},mo:S.mo||{},em:em,tr:tr,
+  S={date:today(),ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,em:em,tr:tr,
     wch:S.wch||{},wcom:S.wcom||{},wche:S.wche||{},semana:S.semana||weekKey()};
   OS={};sv();
   go(CUR,document.querySelector('.tab.active'));
@@ -961,17 +961,24 @@ if(!S.mo || Object.keys(S.mo).length===0){
       for(var i=0;i<data.length;i++){
         if(data[i].tipo==='cashlogy'){last=data[i];break;}
       }
-      if(last && last.he && last.he.length){
-        // he contiene strings como "0,01€: 3 tubos"
-        if(!S.mo)S.mo={};
-        last.he.forEach(function(entry){
-          MON.forEach(function(mn){
-            if(entry.indexOf(mn.l+':')===0){
-              var m=entry.match(/:\s*(\d+)/);
-              if(m)S.mo[mn.id]=parseInt(m[1]);
-            }
+      if(last){
+        // Recuperar estado de tubos
+        if(last.he && last.he.length){
+          if(!S.mo)S.mo={};
+          last.he.forEach(function(entry){
+            MON.forEach(function(mn){
+              if(entry.indexOf(mn.l+':')===0){
+                var m=entry.match(/:\s*(\d+)/);
+                if(m)S.mo[mn.id]=parseInt(m[1]);
+              }
+            });
           });
-        });
+        }
+        // Recuperar importe cajón azul
+        if(typeof last.bi==='number' && last.bi>0){
+          S.bi=last.bi;
+          S.ba=last.bi<50;
+        }
         sv();
         rCash();
       }
