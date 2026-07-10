@@ -634,7 +634,10 @@ function gRegTubos(){
   var tubos=MON.map(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return mn.l+': '+q+' tubo'+(q!==1?'s':'');});
   var alertas=MON.filter(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return q<=mn.warn;}).map(function(mn){return mn.l;});
   // Store tube values as JSON string in first he entry for reliable recovery
-  var moJSON='__mo__:'+JSON.stringify(S.mo||{});
+  // Build full tube state including defaults for all denominations
+  var fullMo={};
+  MON.forEach(function(mn){fullMo[mn.id]=(mn.id in (S.mo||{}))?S.mo[mn.id]:mn.def;});
+  var moJSON='__mo__:'+JSON.stringify(fullMo);
   var entryTubos={
     id:Date.now(),tipo:'cashlogy',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
@@ -657,7 +660,10 @@ function gRegCash(){
   var alertas=MON.filter(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return q<=mn.warn;}).map(function(mn){return mn.l;});
   var cshTasks=[{id:'csh1'},{id:'csh2'},{id:'csh3'}];
   var checks=cshTasks.filter(function(t){return !!(S.ch&&S.ch[t.id]);}).length;
-  var moJSON='__mo__:'+JSON.stringify(S.mo||{});
+  // Build full tube state including defaults for all denominations
+  var fullMo2={};
+  MON.forEach(function(mn){fullMo2[mn.id]=(mn.id in (S.mo||{}))?S.mo[mn.id]:mn.def;});
+  var moJSON='__mo__:'+JSON.stringify(fullMo2);
   var entryCash={id:Date.now(),tipo:'cashlogy',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
