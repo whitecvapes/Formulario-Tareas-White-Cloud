@@ -531,6 +531,7 @@ function rCash(){
     }).join('')+
     '</div></div>';
 
+  h+='<button class="bsave" style="margin-top:.4rem;margin-bottom:.5rem;width:100%;background:#1a6b3a" onclick="svCash()">&#x2713; Guardar verificación Cashlogy</button>';
   h+='<div class="rf"><h3>&#x1F4B4; Control de tubos por denominación</h3>'+
     '<p style="font-size:11px;color:var(--text3);margin-bottom:.5rem">🟠 Naranja: stock bajo · 🔴 Rojo: urgente, avisar a gerencia</p>'+
     '<div class="cg">'+
@@ -555,9 +556,9 @@ function rCash(){
     '</div>'+
     '<p style="font-size:11px;color:var(--text3);margin-top:.25rem">Alerta automática si el importe es inferior a 50€. Todo uso del cajón azul debe quedar registrado en la hoja: razón, empleado, hora y cantidad.</p>'+
     '</div>';
+  h+='<button class="bsave" style="margin-top:.4rem;margin-bottom:.5rem;width:100%;background:#0277bd" onclick="svTubosBi()">&#x1F4BE; Guardar tubos + cajón azul</button>';
 
-  h+='<button class="bsave" style="margin-top:.6rem;margin-bottom:.3rem;width:100%" onclick="gRegTubos()">&#x1F4BE; Guardar estado tubos</button>';
-  h+='<button class="bsave" style="margin-top:.3rem;width:100%" onclick="gRegCash()">&#x1F4BE; Guardar estado Cashlogy</button>';
+  h+='<button class="bsave" style="margin-top:.6rem;width:100%" onclick="gRegCash()">&#x1F4BE; Guardar registro completo Cashlogy</button>';
   document.getElementById('tab-cashlogy').innerHTML=h;
 }
 
@@ -625,6 +626,51 @@ function addR(est){
 function dR(i){
   var t=today();var tr=RC.filter(function(r){return r.fecha===t;});
   var gi=RC.indexOf(tr[i]);if(gi>-1)RC.splice(gi,1);sv();rRec();
+}
+
+function svCash(){
+  // Save verification checks only to localStorage
+  sv();
+  // Visual feedback
+  var btn=document.querySelector('[onclick="svCash()"]');
+  if(btn){var orig=btn.innerHTML;btn.innerHTML='✓ Guardado';btn.style.background='#388e3c';setTimeout(function(){btn.innerHTML=orig;btn.style.background='#1a6b3a';},1500);}
+}
+
+function svTubosBi(){
+  // Build full tube state
+  var m=S.mo||{};
+  var fullMo={};
+  MON.forEach(function(mn){fullMo[mn.id]=(mn.id in m)?m[mn.id]:mn.def;});
+  S.mo=fullMo;
+  // Get cajón value from input if present
+  var inp=document.getElementById('bim');
+  if(inp&&inp.value!==''){
+    var v=parseFloat(inp.value)||0;
+    S.bi=v;S.ba=v>0&&v<50;
+    try{localStorage.setItem(K+'bi',JSON.stringify({bi:v,ba:S.ba}));}catch(e){}
+    if(S.ba)alert('⚠️ El cajón azul tiene menos de 50€. Comunicar a gerencia.');
+  }
+  try{localStorage.setItem(K+'mo',JSON.stringify(fullMo));}catch(e){}
+  sv();
+  // Also send to Sheets for cross-device sync
+  var em=document.getElementById('emp')?.value||'Sin nombre';
+  var tr=document.getElementById('trn')?.value||'';
+  var tubos=MON.map(function(mn){return mn.l+': '+(fullMo[mn.id]||mn.def)+' tubo'+((fullMo[mn.id]||mn.def)!==1?'s':'');});
+  var moJSON='__mo__:'+JSON.stringify(fullMo);
+  var biJSON='__bi__:'+(S.bi||0);
+  var alertas=MON.filter(function(mn){return (fullMo[mn.id]||mn.def)<=mn.warn;}).map(function(mn){return mn.l;});
+  sendToSheets({
+    id:Date.now(),tipo:'tubos_bi',
+    fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
+    hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
+    em:em,tr:tr,comp:0,tot:0,
+    he:[moJSON,biJSON].concat(tubos),
+    pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:[],
+    bi:S.bi||0,ba:S.ba||false,semana:'',rec:0,rnk:0
+  });
+  // Visual feedback
+  var btn=document.querySelector('[onclick="svTubosBi()"]');
+  if(btn){var orig=btn.innerHTML;btn.innerHTML='✓ Guardado y sincronizado';setTimeout(function(){btn.innerHTML=orig;},1800);}
 }
 
 function gRegTubos(){
@@ -802,7 +848,7 @@ function renderLogEntries(data){
     var fecha=fmtFecha(e.fecha);
     var hora=fmtHora(e.hora);
     var isOpen=!!LE_OPEN[e.id];
-    var he=(e.he||[]).filter(function(t){return typeof t==='string'&&t.indexOf('__mo__:')!==0;});
+    var he=(e.he||[]).filter(function(t){return typeof t==='string'&&t.indexOf('__mo__:')!==0&&t.indexOf('__bi__:')!==0;});
     var pe=(e.pe||[]).filter(function(t){return typeof t==='string'&&t!=='Sin alertas';});
     var detalle='';
     if(isOpen){
@@ -948,13 +994,16 @@ function rAyuda(){
       "<p style=\"margin-top:.5rem\"><strong>Al finalizar tu turno</strong> pulsa <strong>Guardar registro del turno</strong>. Guarda un snapshot con tareas hechas y pendientes. Si no lo pulsas no queda constancia en el historial.</p>"
     },
     {ic:"💰",ti:"Cashlogy — qué registra cada botón",body:
-      "<p><strong>Verificación Cashlogy:</strong> tres checks que confirman que se ha revisado el nivel, recargado si era necesario y traspasado billetes al stacker.</p>"+
-      "<p style=\"margin-top:.4rem\"><strong>Control de tubos:</strong> ajusta con +/− el número de tubos por denominación. Naranja = stock bajo · Rojo = urgente, avisar a gerencia.</p>"+
-      "<p style=\"margin-top:.25rem\">Los valores de tubos <strong>se mantienen automáticamente</strong> entre turnos y reinicios diarios. Si un empleado ajusta una cantidad, el siguiente turno la verá actualizada sin necesidad de volver a introducirla.</p>"+
-      "<p style=\"margin-top:.25rem\">Si se abre la app en un dispositivo nuevo o con caché limpio, la app recupera automáticamente los últimos valores guardados desde Google Sheets (del último guardado de Cashlogy).</p>"+
-      "<p style=\"margin-top:.4rem\"><strong>Cajón azul:</strong> introduce el importe de billetes disponibles y pulsa Registrar. Si hay menos de 50€ salta alerta automática para avisar a gerencia.</p>"+
-      "<p style=\"margin-top:.25rem\">El importe del cajón azul también <strong>se mantiene entre turnos y reinicios</strong> y se recupera de Sheets en dispositivos nuevos, igual que los tubos. Solo cambia cuando se introduce un nuevo importe manualmente.</p>"+
-      "<p style=\"margin-top:.5rem\"><strong>Al finalizar</strong> pulsa <strong>Guardar estado Cashlogy</strong> para dejar constancia en el historial y sincronizar los valores con todos los dispositivos.</p>"
+      "<p>La pestaña Cashlogy tiene tres secciones independientes, cada una con su propio botón de guardado.</p>"+
+      "<p style=\"margin-top:.6rem\"><strong>1. Verificación Cashlogy</strong></p>"+
+      "<p style=\"margin-top:.2rem\">Tres checks que confirman que se ha revisado el nivel, recargado si era necesario y traspasado billetes al stacker. Al terminar pulsa <strong style=\"color:#1a6b3a\">✓ Guardar verificación Cashlogy</strong> — guarda los checks en local al instante.</p>"+
+      "<p style=\"margin-top:.6rem\"><strong>2. Control de tubos + Cajón azul</strong></p>"+
+      "<p style=\"margin-top:.2rem\">Ajusta con +/− el número de tubos por denominación. 🟠 Naranja = stock bajo · 🔴 Rojo = urgente, avisar a gerencia.</p>"+
+      "<p style=\"margin-top:.2rem\">Introduce el importe de billetes del cajón azul y pulsa Registrar. Si hay menos de 50€ salta alerta automática.</p>"+
+      "<p style=\"margin-top:.2rem\">Al terminar pulsa <strong style=\"color:#0277bd\">💾 Guardar tubos + cajón azul</strong> — guarda los valores en local y los sincroniza a Google Sheets para que cualquier otro dispositivo los recupere automáticamente al abrir la app.</p>"+
+      "<p style=\"margin-top:.2rem\">Los valores de tubos y cajón azul <strong>se mantienen entre turnos y reinicios diarios</strong> — el siguiente turno los verá actualizados sin tener que volver a introducirlos.</p>"+
+      "<p style=\"margin-top:.6rem\"><strong>3. Registro completo</strong></p>"+
+      "<p style=\"margin-top:.2rem\">Al finalizar el turno pulsa <strong>💾 Guardar registro completo Cashlogy</strong> para dejar constancia en el historial con todos los datos del turno: checks de verificación, estado de tubos y cajón azul.</p>"
     },
     {ic:"📦",ti:"Recepciones — flujo completo",body:
       "<p>Cada vez que llega un pedido rellena el formulario: proveedor · turno · nº albarán · quién lo recibe · observaciones.</p>"+
@@ -1060,10 +1109,10 @@ try{
 fetch(SHEETS_URL)
   .then(function(r){return r.json();})
     .then(function(data){
-      // Buscar el último registro de tipo cashlogy
+      // Buscar el último registro de tipo cashlogy o tubos_bi
       var last=null;
       for(var i=0;i<data.length;i++){
-        if(data[i].tipo==='cashlogy'){last=data[i];break;}
+        if(data[i].tipo==='cashlogy'||data[i].tipo==='tubos_bi'){last=data[i];break;}
       }
       if(last){
         // Recuperar estado de tubos — intentar JSON primero, luego texto
@@ -1092,8 +1141,17 @@ fetch(SHEETS_URL)
             });
           }
         }
-        // Recuperar importe cajón azul (Sheets devuelve strings)
-        var biVal=parseFloat(last.bi)||0;
+        // Recuperar importe cajón azul — intentar __bi__ del he array primero
+        var biVal=0;
+        if(last.he){
+          last.he.forEach(function(entry){
+            if(typeof entry==='string'&&entry.indexOf('__bi__:')===0){
+              biVal=parseFloat(entry.replace('__bi__:',''))||0;
+            }
+          });
+        }
+        // Fallback al campo bi directo
+        if(!biVal)biVal=parseFloat(last.bi)||0;
         if(biVal>0){
           S.bi=biVal;
           S.ba=biVal<50;
