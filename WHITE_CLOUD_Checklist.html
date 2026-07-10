@@ -643,7 +643,7 @@ function gRegTubos(){
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
     em:em,tr:tr,comp:0,tot:0,he:[moJSON].concat(tubos),
-    pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:['Sin alertas'],
+    pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:[],
     bi:S.bi||0,ba:S.ba||false,semana:'',rec:0,rnk:0
   };
   // Save tubes independently to localStorage
@@ -667,7 +667,7 @@ function gRegCash(){
   var entryCash={id:Date.now(),tipo:'cashlogy',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
-    em:em,tr:tr,comp:checks,tot:3,he:[moJSON].concat(tubos),pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:['Sin alertas'],
+    em:em,tr:tr,comp:checks,tot:3,he:[moJSON].concat(tubos),pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:[],
     bi:S.bi||0,ba:S.ba||false,semana:'',rec:0,rnk:0};
   LG.unshift(entryCash);
   if(LG.length>120)LG=LG.slice(0,120);
@@ -802,7 +802,8 @@ function renderLogEntries(data){
     var fecha=fmtFecha(e.fecha);
     var hora=fmtHora(e.hora);
     var isOpen=!!LE_OPEN[e.id];
-    var he=e.he||[];var pe=e.pe||[];
+    var he=(e.he||[]).filter(function(t){return typeof t==='string'&&t.indexOf('__mo__:')!==0;});
+    var pe=(e.pe||[]).filter(function(t){return typeof t==='string'&&t!=='Sin alertas';});
     var detalle='';
     if(isOpen){
       if(he.length){
@@ -1046,10 +1047,9 @@ try{
     S.bi=biObj.bi||0;S.ba=biObj.ba||false;sv();
   }
 }catch(e){}
-// Si no hay estado de tubos local, intentar recuperar el último de Sheets
-if(!S.mo || Object.keys(S.mo).length===0){
-  fetch(SHEETS_URL)
-    .then(function(r){return r.json();})
+// Siempre recuperar el último estado de tubos y cajón azul desde Sheets al cargar
+fetch(SHEETS_URL)
+  .then(function(r){return r.json();})
     .then(function(data){
       // Buscar el último registro de tipo cashlogy
       var last=null;
@@ -1093,7 +1093,6 @@ if(!S.mo || Object.keys(S.mo).length===0){
       }
     })
     .catch(function(){});
-}
 </script>
 </body>
 </html>
