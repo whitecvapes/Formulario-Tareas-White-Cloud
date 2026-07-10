@@ -815,6 +815,15 @@ function renderLogEntries(data){
           pe.map(function(t){return '<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border1);color:var(--text3)">'+t+'</div>';}).join('')+'</div>';
       }
       if(!he.length&&!pe.length)detalle='<div style="font-size:12px;color:var(--text3);margin-top:.4rem">Sin detalle disponible.</div>';
+      // Show cajón azul if present
+      if(e.tipo==='cashlogy'&&typeof e.bi!=='undefined'&&e.bi!==null&&e.bi!==''){
+        var biNum=parseFloat(e.bi)||0;
+        var biColor=biNum<50?'var(--red)':'var(--green)';
+        detalle+='<div style="margin-top:.5rem;padding:.4rem .6rem;border-radius:8px;background:var(--bg2);font-size:12px">'+
+          '💼 <strong>Cajón azul:</strong> <span style="color:'+biColor+';font-weight:700">'+biNum+'€</span>'+
+          (biNum<50?' <span style="color:var(--red);font-weight:600"> ⚠️ Por debajo del mínimo (50€)</span>':' ✓')+
+          '</div>';
+      }
     }
     return '<div class="le">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;cursor:pointer" onclick="toggleLE('+e.id+')">'+
@@ -1083,10 +1092,12 @@ fetch(SHEETS_URL)
             });
           }
         }
-        // Recuperar importe cajón azul
-        if(typeof last.bi==='number' && last.bi>0){
-          S.bi=last.bi;
-          S.ba=last.bi<50;
+        // Recuperar importe cajón azul (Sheets devuelve strings)
+        var biVal=parseFloat(last.bi)||0;
+        if(biVal>0){
+          S.bi=biVal;
+          S.ba=biVal<50;
+          try{localStorage.setItem(K+'bi',JSON.stringify({bi:biVal,ba:biVal<50}));}catch(e){}
         }
         sv();
         rCash();
