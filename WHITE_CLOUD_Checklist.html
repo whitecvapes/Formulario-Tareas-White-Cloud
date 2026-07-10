@@ -556,13 +556,17 @@ function rCash(){
     '<p style="font-size:11px;color:var(--text3);margin-top:.25rem">Alerta automática si el importe es inferior a 50€. Todo uso del cajón azul debe quedar registrado en la hoja: razón, empleado, hora y cantidad.</p>'+
     '</div>';
 
-  h+='<button class="bsave" style="margin-top:.6rem" onclick="gRegCash()">&#x1F4BE; Guardar estado Cashlogy</button>';
+  h+='<button class="bsave" style="margin-top:.6rem;margin-bottom:.3rem;width:100%" onclick="gRegTubos()">&#x1F4BE; Guardar estado tubos</button>';
+  h+='<button class="bsave" style="margin-top:.3rem;width:100%" onclick="gRegCash()">&#x1F4BE; Guardar estado Cashlogy</button>';
   document.getElementById('tab-cashlogy').innerHTML=h;
 }
 
 function gBill(){
   var v=parseFloat(document.getElementById('bim')?.value||0);
-  S.bi=v;S.ba=v>0&&v<50;sv();rCash();
+  S.bi=v;S.ba=v>0&&v<50;
+  // Save bi independently so it survives cache clears
+  try{localStorage.setItem(K+'bi',JSON.stringify({bi:v,ba:S.ba}));}catch(e){}
+  sv();rCash();
   if(S.ba)alert('⚠️ El cajón azul tiene menos de 50€.\nComunicar a gerencia inmediatamente.');
 }
 
@@ -621,6 +625,26 @@ function addR(est){
 function dR(i){
   var t=today();var tr=RC.filter(function(r){return r.fecha===t;});
   var gi=RC.indexOf(tr[i]);if(gi>-1)RC.splice(gi,1);sv();rRec();
+}
+
+function gRegTubos(){
+  var em=document.getElementById('emp')?.value||'Sin nombre';
+  var tr=document.getElementById('trn')?.value;
+  var m=S.mo||{};
+  var tubos=MON.map(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return mn.l+': '+q+' tubo'+(q!==1?'s':'');});
+  var alertas=MON.filter(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return q<=mn.warn;}).map(function(mn){return mn.l;});
+  var entryTubos={
+    id:Date.now(),tipo:'cashlogy',
+    fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
+    hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
+    em:em,tr:tr,comp:0,tot:0,he:tubos,
+    pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:['Sin alertas'],
+    bi:S.bi||0,ba:S.ba||false,semana:'',rec:0,rnk:0
+  };
+  // Save tubes independently to localStorage
+  try{localStorage.setItem(K+'mo',JSON.stringify(S.mo||{}));}catch(e){}
+  sendToSheets(entryTubos);
+  alert('✓ Estado de tubos guardado y sincronizado.');
 }
 
 function gRegCash(){
@@ -712,7 +736,41 @@ function gReg(tipo){
 
 var SH_LOG=[];
 
+function fmtFecha(f){
+  // Fix ISO date strings from Sheets (e.g. "2026-07-09T22:00:00.000Z") to readable format
+  if(!f)return '';
+  if(f.indexOf('T')>-1||f.match(/^\d{4}-\d{2}-\d{2}/)){
+    try{
+      var d=new Date(f);
+      var dias=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+      var meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      return dias[d.getDay()]+', '+d.getDate()+' de '+meses[d.getMonth()]+' de '+d.getFullYear();
+    }catch(e){return f;}
+  }
+  return f;
+}
+
+function fmtHora(h){
+  // Fix ISO time strings from Sheets
+  if(!h)return '';
+  if(h.indexOf('T')>-1||h.match(/^1899|^190[0-9]/)){
+    try{
+      var d=new Date(h);
+      return d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    }catch(e){return h;}
+  }
+  return h;
+}
+
+var LE_OPEN={};
+
+function toggleLE(id){
+  LE_OPEN[id]=!LE_OPEN[id];
+  renderLogEntries(SH_LOG.length?SH_LOG:LG);
+}
+
 function renderLogEntries(data){
+  SH_LOG=data;
   var sr=document.getElementById('sr');var ll=document.getElementById('ll');
   if(!sr||!ll)return;
   if(!data.length){
@@ -732,14 +790,31 @@ function renderLogEntries(data){
   ll.innerHTML=data.slice(0,120).map(function(e){
     var pill=e.tr==='mañana'?'tp-m':(e.tr==='tarde'?'tp-t':'tp-c');
     var showTurno=e.tipo==='diario'||e.tipo==='cashlogy'||e.tipo==='recepciones'||e.tipo==='desconexion';
+    var fecha=fmtFecha(e.fecha);
+    var hora=fmtHora(e.hora);
+    var isOpen=!!LE_OPEN[e.id];
+    var he=e.he||[];var pe=e.pe||[];
+    var detalle='';
+    if(isOpen){
+      if(he.length){
+        detalle+='<div style="margin-top:.5rem"><div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:.25rem">✓ HECHAS ('+he.length+')</div>'+
+          he.map(function(t){return '<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border1);color:var(--text2)">'+t+'</div>';}).join('')+'</div>';
+      }
+      if(pe.length){
+        detalle+='<div style="margin-top:.5rem"><div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:.25rem">✗ PENDIENTES ('+pe.length+')</div>'+
+          pe.map(function(t){return '<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border1);color:var(--text3)">'+t+'</div>';}).join('')+'</div>';
+      }
+      if(!he.length&&!pe.length)detalle='<div style="font-size:12px;color:var(--text3);margin-top:.4rem">Sin detalle disponible.</div>';
+    }
     return '<div class="le">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;cursor:pointer" onclick="toggleLE('+e.id+')">'+
       '<h4>'+(tipoIcon[e.tipo]||'📋')+' '+(tipoLabel[e.tipo]||e.tipo)+' — '+e.em+(showTurno&&e.tr?'<span class="turno-pill '+pill+'">'+e.tr+'</span>':'')+'</h4>'+
+      '<div style="display:flex;align-items:center;gap:.4rem">'+
       '<span style="font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;background:var(--green-bg);color:var(--green)">'+e.comp+'/'+e.tot+'</span>'+
-      '</div>'+
-      '<div class="lm">'+(e.semana?e.semana+' · ':'')+e.fecha+' · '+e.hora+(e.tipo==='recepciones'&&e.rec?' · '+e.rec+' recepcion'+(e.rec>1?'es':'')+(e.rnk?' ('+e.rnk+' con incidencia)':''):'')+' </div>'+
-      (e.he&&e.he.length?'<p class="lp"><span style="color:var(--green)">✓</span> '+e.he.slice(0,5).join(' · ')+(e.he.length>5?' +'+(e.he.length-5)+' mas':'')+'</p>':'')+
-      (e.pe&&e.pe.length?'<p class="lp"><span style="color:var(--red)">✗</span> '+e.pe.slice(0,3).join(' · ')+(e.pe.length>3?' +'+(e.pe.length-3)+' pendientes':'')+'</p>':'')+
+      '<span style="font-size:12px;color:var(--text3)">'+(isOpen?'▲':'▼')+'</span>'+
+      '</div></div>'+
+      '<div class="lm">'+(e.semana?e.semana+' · ':'')+fecha+' · '+hora+(e.tipo==='recepciones'&&e.rec?' · '+e.rec+' recepcion'+(e.rec>1?'es':'')+(e.rnk?' ('+e.rnk+' con incidencia)':''):'')+' </div>'+
+      detalle+
       '</div>';
   }).join('');
 }
@@ -954,6 +1029,14 @@ load();initDates();
 document.getElementById('emp').value=S.em||'';
 document.getElementById('trn').value=S.tr||'mañana';
 rDiarias();
+// Restore cajón azul from its own key if missing
+try{
+  var biStored=localStorage.getItem(K+'bi');
+  if(biStored&&(!S.bi||S.bi===0)){
+    var biObj=JSON.parse(biStored);
+    S.bi=biObj.bi||0;S.ba=biObj.ba||false;sv();
+  }
+}catch(e){}
 // Si no hay estado de tubos local, intentar recuperar el último de Sheets
 if(!S.mo || Object.keys(S.mo).length===0){
   fetch(SHEETS_URL)
