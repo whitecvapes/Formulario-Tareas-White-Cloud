@@ -633,11 +633,13 @@ function gRegTubos(){
   var m=S.mo||{};
   var tubos=MON.map(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return mn.l+': '+q+' tubo'+(q!==1?'s':'');});
   var alertas=MON.filter(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return q<=mn.warn;}).map(function(mn){return mn.l;});
+  // Store tube values as JSON string in first he entry for reliable recovery
+  var moJSON='__mo__:'+JSON.stringify(S.mo||{});
   var entryTubos={
     id:Date.now(),tipo:'cashlogy',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
-    em:em,tr:tr,comp:0,tot:0,he:tubos,
+    em:em,tr:tr,comp:0,tot:0,he:[moJSON].concat(tubos),
     pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:['Sin alertas'],
     bi:S.bi||0,ba:S.ba||false,semana:'',rec:0,rnk:0
   };
@@ -655,10 +657,11 @@ function gRegCash(){
   var alertas=MON.filter(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return q<=mn.warn;}).map(function(mn){return mn.l;});
   var cshTasks=[{id:'csh1'},{id:'csh2'},{id:'csh3'}];
   var checks=cshTasks.filter(function(t){return !!(S.ch&&S.ch[t.id]);}).length;
+  var moJSON='__mo__:'+JSON.stringify(S.mo||{});
   var entryCash={id:Date.now(),tipo:'cashlogy',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
-    em:em,tr:tr,comp:checks,tot:3,he:tubos,pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:['Sin alertas'],
+    em:em,tr:tr,comp:checks,tot:3,he:[moJSON].concat(tubos),pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:['Sin alertas'],
     bi:S.bi||0,ba:S.ba||false,semana:'',rec:0,rnk:0};
   LG.unshift(entryCash);
   if(LG.length>120)LG=LG.slice(0,120);
@@ -1048,17 +1051,31 @@ if(!S.mo || Object.keys(S.mo).length===0){
         if(data[i].tipo==='cashlogy'){last=data[i];break;}
       }
       if(last){
-        // Recuperar estado de tubos
+        // Recuperar estado de tubos — intentar JSON primero, luego texto
         if(last.he && last.he.length){
-          if(!S.mo)S.mo={};
+          var recovered=false;
+          // Try __mo__ JSON entry first (reliable)
           last.he.forEach(function(entry){
-            MON.forEach(function(mn){
-              if(entry.indexOf(mn.l+':')===0){
-                var m=entry.match(/:\s*(\d+)/);
-                if(m)S.mo[mn.id]=parseInt(m[1]);
-              }
-            });
+            if(typeof entry==='string'&&entry.indexOf('__mo__:')===0){
+              try{
+                var parsed=JSON.parse(entry.replace('__mo__:',''));
+                S.mo=parsed;recovered=true;
+              }catch(e){}
+            }
           });
+          // Fallback: parse readable text like "0,01€: 4 tubos"
+          if(!recovered){
+            if(!S.mo)S.mo={};
+            last.he.forEach(function(entry){
+              if(typeof entry!=='string')return;
+              MON.forEach(function(mn){
+                if(entry.indexOf(mn.l)===0){
+                  var m=entry.match(/(\d+)\s*tubo/);
+                  if(m)S.mo[mn.id]=parseInt(m[1]);
+                }
+              });
+            });
+          }
         }
         // Recuperar importe cajón azul
         if(typeof last.bi==='number' && last.bi>0){
