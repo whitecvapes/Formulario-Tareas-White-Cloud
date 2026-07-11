@@ -351,7 +351,7 @@ function sendToSheets(entry){
     fetch(SHEETS_URL,{
       method:'POST',
       mode:'no-cors',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'text/plain'},
       body:JSON.stringify(entry)
     }).catch(function(){});
   }catch(e){}
@@ -372,7 +372,6 @@ function setSyncStatus(ok, msg){
 }
 
 function syncEstado(){
-  // Sync live daily state to Sheets so other devices see it
   try{
     var payload={
       action:'syncEstado',
@@ -386,10 +385,11 @@ function syncEstado(){
       dm:S.dm||[],
       rc:RC||[]
     };
+    // Use text/plain — works with no-cors unlike application/json
     fetch(SHEETS_URL,{
       method:'POST',
       mode:'no-cors',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'text/plain'},
       body:JSON.stringify(payload)
     }).then(function(){setSyncStatus(true);}).catch(function(){setSyncStatus(false);});
   }catch(e){setSyncStatus(false);}
