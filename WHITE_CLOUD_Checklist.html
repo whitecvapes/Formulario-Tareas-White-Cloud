@@ -183,6 +183,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 
+<div style="background:#b45309;color:#fff;border-radius:12px;padding:.75rem 1rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.75rem">
+  <div style="font-size:24px;flex-shrink:0">💾</div>
+  <div>
+    <div style="font-size:13px;font-weight:700;letter-spacing:.01em">GUARDAR REGISTRO AL FINALIZAR EL TURNO</div>
+    <div style="font-size:12px;opacity:.92;margin-top:2px;line-height:1.5">Antes de salir pulsa <strong>Guardar registro del turno</strong> en la pestaña Diarias · Los checks permanecen visibles para el siguiente turno</div>
+  </div>
+</div>
+
+<button id="btn-guardar-todo" onclick="guardarTodo()" style="width:100%;padding:.6rem 1rem;margin-bottom:.6rem;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.01em">💾 Guardar todos los registros del turno</button>
+
 <div class="meta">
   <div class="mc">
     <label>Empleado/a</label>
@@ -792,6 +802,37 @@ function gRegTubos(){
   try{localStorage.setItem(K+'mo',JSON.stringify(S.mo||{}));}catch(e){}
   sendToSheets(entryTubos);
   alert('✓ Estado de tubos guardado y sincronizado.');
+}
+
+var LAST_SAVE_ALL=0;
+
+function guardarTodo(){
+  var now=Date.now();
+  if(now-LAST_SAVE_ALL<30000){
+    var secs=Math.ceil((30000-(now-LAST_SAVE_ALL))/1000);
+    alert('⏳ Espera '+secs+' segundos antes de volver a guardar todo.');
+    return;
+  }
+  LAST_SAVE_ALL=now;
+  var btn=document.getElementById('btn-guardar-todo');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Guardando...';}
+
+  // Save diarias
+  gReg('diario');
+  // Save cashlogy
+  gRegCash();
+  // Save recepciones if any today
+  var recs=RC.filter(function(r){return r.fecha===today();});
+  if(recs.length)gRegRec();
+  // Save semanales
+  gReg('semanal');
+  // Save desconexion if any today
+  var dm=(S.dm||[]).filter(function(r){return r.fecha===todayS();});
+  if(dm.length)gRegDes();
+
+  setTimeout(function(){
+    if(btn){btn.disabled=false;btn.textContent='💾 Guardar todos los registros del turno';}
+  },3000);
 }
 
 function gRegCash(){
