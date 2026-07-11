@@ -372,6 +372,7 @@ function setSyncStatus(ok, msg){
 }
 
 function syncEstado(){
+  console.log('syncEstado called, fecha:', today());
   try{
     var payload={
       action:'syncEstado',
@@ -385,14 +386,14 @@ function syncEstado(){
       dm:S.dm||[],
       rc:RC||[]
     };
-    // Use text/plain — works with no-cors unlike application/json
+    console.log('sending payload to:', SHEETS_URL);
     fetch(SHEETS_URL,{
       method:'POST',
       mode:'no-cors',
       headers:{'Content-Type':'text/plain'},
       body:JSON.stringify(payload)
-    }).then(function(){setSyncStatus(true);}).catch(function(){setSyncStatus(false);});
-  }catch(e){setSyncStatus(false);}
+    }).then(function(){console.log('syncEstado OK');setSyncStatus(true);}).catch(function(e){console.log('syncEstado ERROR:',e);setSyncStatus(false);});
+  }catch(e){console.log('syncEstado EXCEPTION:',e);setSyncStatus(false);}
 }
 
 function loadEstado(cb){
