@@ -535,6 +535,7 @@ function tgl(id,w){
   const te=document.getElementById('ts_'+id);
   if(te)te.innerHTML=S.ch[k]?renderTs(k):'';
   sv();
+  syncEstado();
 }
 
 function renderTs(k){
