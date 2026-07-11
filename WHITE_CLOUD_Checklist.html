@@ -399,11 +399,13 @@ function loadEstado(cb){
   fetch(SHEETS_URL+'?action=getEstado&fecha='+today())
     .then(function(r){
       if(!r.ok)throw new Error('HTTP '+r.status);
-      return r.json();
+      return r.text(); // get raw text first
     })
-    .then(function(data){
-      setSyncStatus(true);
-      if(data&&data.fecha===today()){
+    .then(function(txt){
+      try{
+        var data=JSON.parse(txt);
+        setSyncStatus(true);
+        if(data&&data.fecha===today()){
         // Merge remote checks with local — remote wins for marked tasks
         if(data.ch){
           if(!S.ch)S.ch={};
@@ -435,8 +437,12 @@ function loadEstado(cb){
         sv();
       }
       if(cb)cb();
+      }catch(parseErr){
+        setSyncStatus(false,'Respuesta inesperada del servidor');
+        if(cb)cb();
+      }
     })
-    .catch(function(err){setSyncStatus(false, 'Error: '+err.message);if(cb)cb();});
+    .catch(function(err){setSyncStatus(false,'Error: '+err.message);if(cb)cb();});
 }
 
 function today(){return new Date().toISOString().slice(0,10);}
