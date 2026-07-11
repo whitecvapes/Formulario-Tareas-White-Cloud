@@ -154,7 +154,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <div>
         <div class="hdr-title">White Cloud <span style="font-size:10px;font-weight:400;opacity:.7">v2.5</span></div>
         <div class="hdr-sub" id="ftxt">Checklist de turno</div>
-    <div id="sync-status" style="font-size:10px;margin-top:2px;color:rgba(255,255,255,0.7)">⏳ Conectando...</div>
+    <div id="sync-status" style="font-size:10px;margin-top:2px;color:#fbbf24;font-weight:600">⏳ Conectando...</div>
       </div>
     </div>
   </div>
@@ -362,10 +362,12 @@ function setSyncStatus(ok, msg){
   if(!el)return;
   if(ok){
     el.textContent='✓ Sincronizado';
-    el.style.color='rgba(255,255,255,0.85)';
+    el.style.color='#86efac';
+    el.style.fontWeight='600';
   } else {
     el.textContent='⚠️ '+(msg||'Sin conexión — datos en local');
     el.style.color='#fbbf24';
+    el.style.fontWeight='600';
   }
 }
 
