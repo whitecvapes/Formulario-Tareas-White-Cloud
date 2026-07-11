@@ -160,7 +160,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="hdr-right">
     <span class="badge" id="bfch"></span>
     <button class="rbtn" onclick="resetDia()">&#x21BB; Nuevo día</button>
+    <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:2px;line-height:1.3">Pulsar al inicio<br>de cada día</div>
     <button class="rbtn" onclick="resetSem()" style="border-color:var(--orange-light);color:var(--orange)">&#x1F4C5; Nueva semana</button>
+    <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:2px;line-height:1.3">Pulsar al inicio<br>de cada semana</div>
   </div>
 </div>
 
@@ -334,6 +336,69 @@ function sendToSheets(entry){
       body:JSON.stringify(entry)
     }).catch(function(){});
   }catch(e){}
+}
+
+function syncEstado(){
+  // Sync live daily state to Sheets so other devices see it
+  try{
+    var payload={
+      action:'syncEstado',
+      fecha:today(),
+      ch:S.ch||{},
+      che:S.che||{},
+      wch:S.wch||{},
+      wcom:S.wcom||{},
+      wche:S.wche||{},
+      dm:S.dm||[],
+      rc:RC||[]
+    };
+    fetch(SHEETS_URL,{
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    }).catch(function(){});
+  }catch(e){}
+}
+
+function loadEstado(cb){
+  // Load live daily state from Sheets
+  fetch(SHEETS_URL+'?action=getEstado&fecha='+today())
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data&&data.fecha===today()){
+        // Merge remote checks with local — remote wins for marked tasks
+        if(data.ch){
+          if(!S.ch)S.ch={};
+          Object.keys(data.ch).forEach(function(k){
+            if(data.ch[k])S.ch[k]=data.ch[k];
+          });
+        }
+        if(data.che){
+          if(!S.che)S.che={};
+          Object.keys(data.che).forEach(function(k){
+            if(!S.che[k]&&data.che[k])S.che[k]=data.che[k];
+          });
+        }
+        if(data.wch){
+          if(!S.wch)S.wch={};
+          Object.keys(data.wch).forEach(function(k){
+            if(data.wch[k])S.wch[k]=data.wch[k];
+          });
+        }
+        if(data.wcom){
+          if(!S.wcom)S.wcom={};
+          Object.keys(data.wcom).forEach(function(k){
+            if(data.wcom[k])S.wcom[k]=data.wcom[k];
+          });
+        }
+        if(data.dm&&data.dm.length){S.dm=data.dm;}
+        if(data.rc&&data.rc.length){RC=data.rc;}
+        sv();
+      }
+      if(cb)cb();
+    })
+    .catch(function(){if(cb)cb();});
 }
 
 function today(){return new Date().toISOString().slice(0,10);}
@@ -552,7 +617,6 @@ function rCash(){
   h+='<div class="rf"><h3>&#x1F4BC; Cajón de caudales azul</h3>'+
     '<div class="bill-row">'+
     '<div class="rfl"><label>Billetes disponibles (€)</label><input type="number" id="bim" min="0" step="1" placeholder="0" value="'+(S.bi||'')+'" style="font-size:16px;padding:6px 0;border:none;border-bottom:2px solid var(--border2);border-radius:0;background:none"></div>'+
-    '<button class="bill-btn" onclick="gBill()">&#10003; Registrar</button>'+
     '</div>'+
     '<p style="font-size:11px;color:var(--text3);margin-top:.25rem">Alerta automática si el importe es inferior a 50€. Todo uso del cajón azul debe quedar registrado en la hoja: razón, empleado, hora y cantidad.</p>'+
     '</div>';
@@ -704,16 +768,29 @@ function gRegCash(){
   var m=S.mo||{};
   var tubos=MON.map(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return mn.l+': '+q+' tubo'+(q!==1?'s':'');});
   var alertas=MON.filter(function(mn){var q=(mn.id in m)?m[mn.id]:mn.def;return q<=mn.warn;}).map(function(mn){return mn.l;});
-  var cshTasks=[{id:'csh1'},{id:'csh2'},{id:'csh3'}];
-  var checks=cshTasks.filter(function(t){return !!(S.ch&&S.ch[t.id]);}).length;
-  // Build full tube state including defaults for all denominations
+  var cshDefs=[
+    {id:'csh1',tx:'Revisar nivel de monedas y billetes en Cashlogy'},
+    {id:'csh2',tx:'Recargar tubos si es necesario'},
+    {id:'csh3',tx:'Traspasar billetes al stacker si nivel amarillo o rojo'}
+  ];
+  var checks=cshDefs.filter(function(t){return !!(S.ch&&S.ch[t.id]);}).length;
+  var cshDone=cshDefs.filter(function(t){return !!(S.ch&&S.ch[t.id]);}).map(function(t){return t.tx;});
+  var cshPend=cshDefs.filter(function(t){return !(S.ch&&S.ch[t.id]);}).map(function(t){return t.tx;});
+  // Add tube alerts to pending
+  if(alertas.length)cshPend.push('⚠️ Stock bajo en tubos: '+alertas.join(', '));
+  // Add cajon alert to pending if applicable
+  if(S.ba)cshPend.push('⚠️ Cajón azul por debajo de 50€ ('+( S.bi||0)+'€)');
+  // Build full tube state
   var fullMo2={};
   MON.forEach(function(mn){fullMo2[mn.id]=(mn.id in (S.mo||{}))?S.mo[mn.id]:mn.def;});
   var moJSON='__mo__:'+JSON.stringify(fullMo2);
+  // Add cajon to he
+  var cshHe=[moJSON].concat(tubos);
+  if(S.bi)cshHe.push('💼 Cajón azul: '+(S.bi||0)+'€'+(S.ba?' ⚠️ Por debajo del mínimo':''));
   var entryCash={id:Date.now(),tipo:'cashlogy',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
-    em:em,tr:tr,comp:checks,tot:3,he:[moJSON].concat(tubos),pe:alertas.length?['⚠️ Stock bajo: '+alertas.join(', ')]:[],
+    em:em,tr:tr,comp:checks,tot:3,he:cshHe,pe:cshPend,
     bi:S.bi||0,ba:S.ba||false,semana:'',rec:0,rnk:0};
   LG.unshift(entryCash);
   if(LG.length>120)LG=LG.slice(0,120);
@@ -999,7 +1076,7 @@ function rAyuda(){
       "<p style=\"margin-top:.2rem\">Tres checks que confirman que se ha revisado el nivel, recargado si era necesario y traspasado billetes al stacker. Al terminar pulsa <strong style=\"color:#1a6b3a\">✓ Guardar verificación Cashlogy</strong> — guarda los checks en local al instante.</p>"+
       "<p style=\"margin-top:.6rem\"><strong>2. Control de tubos + Cajón azul</strong></p>"+
       "<p style=\"margin-top:.2rem\">Ajusta con +/− el número de tubos por denominación. 🟠 Naranja = stock bajo · 🔴 Rojo = urgente, avisar a gerencia.</p>"+
-      "<p style=\"margin-top:.2rem\">Introduce el importe de billetes del cajón azul y pulsa Registrar. Si hay menos de 50€ salta alerta automática.</p>"+
+      "<p style=\"margin-top:.2rem\">Introduce el importe de billetes disponibles en el cajón azul. La alerta de menos de 50€ salta automáticamente al pulsar guardar.</p>"+
       "<p style=\"margin-top:.2rem\">Al terminar pulsa <strong style=\"color:#0277bd\">💾 Guardar tubos + cajón azul</strong> — guarda los valores en local y los sincroniza a Google Sheets para que cualquier otro dispositivo los recupere automáticamente al abrir la app.</p>"+
       "<p style=\"margin-top:.2rem\">Los valores de tubos y cajón azul <strong>se mantienen entre turnos y reinicios diarios</strong> — el siguiente turno los verá actualizados sin tener que volver a introducirlos.</p>"+
       "<p style=\"margin-top:.6rem\"><strong>3. Registro completo</strong></p>"+
@@ -1096,7 +1173,8 @@ function initDates(){
 load();initDates();
 document.getElementById('emp').value=S.em||'';
 document.getElementById('trn').value=S.tr||'mañana';
-rDiarias();
+// Load live estado from Sheets first, then render
+loadEstado(function(){rDiarias();});
 // Restore cajón azul from its own key if missing
 try{
   var biStored=localStorage.getItem(K+'bi');
