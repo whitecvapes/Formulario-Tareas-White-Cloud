@@ -1061,9 +1061,11 @@ function dDM(i){
 function rAyuda(){
   var secs=[
     {ic:"❓",ti:"¿Cómo funciona esta app?",body:
-      "<p>Esta app es el checklist de turno de White Cloud. Cada pestaña cubre un área distinta del turno. Los datos se guardan automáticamente en el dispositivo.</p>"+
+      "<p>Esta app es el checklist de turno de White Cloud. Cada pestaña cubre un área distinta del turno.</p>"+
+      "<p style=\"margin-top:.5rem\">Los datos se sincronizan automáticamente con Google Sheets en tiempo real. Esto significa que si el turno de mañana marca tareas, el turno de tarde las verá ya marcadas al abrir la app desde cualquier dispositivo.</p>"+
       "<p style=\"margin-top:.5rem\">Al empezar el turno escribe tu nombre en el campo <strong>Empleado/a</strong> y selecciona tu turno (mañana / tarde / completo).</p>"+
-      "<p style=\"margin-top:.5rem\">Al terminar el turno pulsa <strong>Nuevo día</strong> solo si eres el último en salir — limpia los checks para el siguiente turno.</p>"
+      "<p style=\"margin-top:.5rem\">Al terminar el turno pulsa <strong>Nuevo día</strong> solo si eres el último en salir — limpia los checks para el siguiente turno.</p>"+
+      "<p style=\"margin-top:.5rem\">Si no hay conexión a internet, la app sigue funcionando con los datos locales del dispositivo y se sincroniza cuando se recupere la conexión.</p>"
     },
     {ic:"📋",ti:"Diarias — cómo y cuándo guardar",body:
       "<p>Contiene todas las tareas del turno: Apertura · Reposición apertura · Turno de mañana · Cambio de turno · Turno de tarde · Reposición pre-cierre · Cierre.</p>"+
@@ -1105,7 +1107,7 @@ function rAyuda(){
       "<p>Guarda el historial de todos los snapshots de todas las pestañas. Cada entrada muestra tipo · empleado · turno · fecha · hora · tareas completadas.</p>"+
       "<p style=\"margin-top:.4rem\">Tipos: 📋 Diario · 💰 Cashlogy · 📦 Recepciones · 📵 Desconexión · 📅 Semanal.</p>"+
       "<p style=\"margin-top:.4rem\">Se conservan hasta 120 entradas. Puedes eliminar entradas con el botón 🗑️.</p>"+
-      "<p style=\"margin-top:.4rem\">⚠️ Los datos son locales al dispositivo. Si cambias de dispositivo o limpias el navegador, los registros se pierden.</p>"
+      "<p style=\"margin-top:.4rem\">El historial se guarda en Google Sheets y es accesible desde cualquier dispositivo. Los registros son permanentes y no se pierden al cambiar de dispositivo o limpiar el navegador.</p>"
     },
   ];
 
