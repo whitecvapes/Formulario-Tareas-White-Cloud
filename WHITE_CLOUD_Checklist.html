@@ -409,35 +409,20 @@ function loadEstado(cb){
         var data=JSON.parse(txt);
         setSyncStatus(true);
         if(data&&data.fecha===today()){
-        // Merge remote checks with local — remote wins for marked tasks
-        if(data.ch){
-          if(!S.ch)S.ch={};
-          Object.keys(data.ch).forEach(function(k){
-            if(data.ch[k])S.ch[k]=data.ch[k];
-          });
-        }
-        if(data.che){
-          if(!S.che)S.che={};
-          Object.keys(data.che).forEach(function(k){
-            if(!S.che[k]&&data.che[k])S.che[k]=data.che[k];
-          });
-        }
-        if(data.wch){
-          if(!S.wch)S.wch={};
-          Object.keys(data.wch).forEach(function(k){
-            if(data.wch[k])S.wch[k]=data.wch[k];
-          });
-        }
-        if(data.wcom){
-          if(!S.wcom)S.wcom={};
-          Object.keys(data.wcom).forEach(function(k){
-            if(data.wcom[k])S.wcom[k]=data.wcom[k];
-          });
-        }
-        if(data.dm&&data.dm.length){S.dm=data.dm;}
-        if(data.rc&&data.rc.length){RC=data.rc;}
-        if(data.cam_obs)S.cam_obs=data.cam_obs;
+        // Remote state wins completely — replace local with Sheets state
+        if(data.ch) S.ch=data.ch;
+        if(data.che) S.che=data.che;
+        if(data.wch) S.wch=data.wch;
+        if(data.wcom) S.wcom=data.wcom;
+        if(data.wche) S.wche=data.wche;
+        if(data.dm&&data.dm.length) S.dm=data.dm;
+        if(data.rc&&data.rc.length) RC=data.rc;
+        if(data.cam_obs!==undefined) S.cam_obs=data.cam_obs;
         sv();
+      } else if(data&&data.fecha&&data.fecha!==today()){
+        // Different day in Sheets — ignore, keep local
+      } else {
+        // Empty response — Sheets has no data for today yet, keep local
       }
       if(cb)cb();
       }catch(parseErr){
