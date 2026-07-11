@@ -1299,6 +1299,16 @@ document.getElementById('emp').value=S.em||'';
 document.getElementById('trn').value=S.tr||'mañana';
 // Load live estado from Sheets first, then render
 loadEstado(function(){rDiarias();});
+
+// Poll Sheets every 30 seconds to sync checks from other devices
+setInterval(function(){
+  loadEstado(function(){
+    if(CUR==='diarias')rDiarias();
+    else if(CUR==='semanales')rSem();
+    else if(CUR==='desconexion')rDesconexion();
+    else if(CUR==='recepciones')rRec();
+  });
+}, 30000);
 // Restore cajón azul from its own key if missing
 try{
   var biStored=localStorage.getItem(K+'bi');
