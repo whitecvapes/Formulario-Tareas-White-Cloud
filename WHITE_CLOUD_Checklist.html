@@ -372,7 +372,7 @@ function setSyncStatus(ok, msg){
 }
 
 function syncEstado(){
-  console.log('syncEstado called, fecha:', today());
+  console.log('syncEstado called at', new Date().toLocaleTimeString(), '- ch keys:', Object.keys(S.ch||{}).filter(function(k){return S.ch[k];}).length, 'marked');
   try{
     var payload={
       action:'syncEstado',
@@ -1287,6 +1287,7 @@ loadEstado(function(){rDiarias();});
 
 // Poll Sheets every 30 seconds to sync checks from other devices
 setInterval(function(){
+  console.log('polling Sheets at', new Date().toLocaleTimeString());
   loadEstado(function(){
     if(CUR==='diarias')rDiarias();
     else if(CUR==='semanales')rSem();
