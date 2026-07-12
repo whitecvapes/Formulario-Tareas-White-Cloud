@@ -407,6 +407,7 @@ function loadEstado(cb){
     .then(function(txt){
       try{
         var data=JSON.parse(txt);
+        console.log('loadEstado response: fecha='+data.fecha+' today='+today()+' match='+(data.fecha===today())+' ch_keys='+Object.keys(data.ch||{}).length);
         setSyncStatus(true);
         if(data&&data.fecha===today()){
         // Remote state wins completely — replace local with Sheets state
