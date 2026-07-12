@@ -372,7 +372,6 @@ function setSyncStatus(ok, msg){
 }
 
 function syncEstado(){
-  console.log('syncEstado called at', new Date().toLocaleTimeString(), '- ch keys:', Object.keys(S.ch||{}).filter(function(k){return S.ch[k];}).length, 'marked');
   try{
     var payload={
       action:'syncEstado',
@@ -386,14 +385,13 @@ function syncEstado(){
       dm:S.dm||[],
       rc:RC||[]
     };
-    console.log('sending payload to:', SHEETS_URL);
     fetch(SHEETS_URL,{
       method:'POST',
       mode:'no-cors',
       headers:{'Content-Type':'text/plain'},
       body:JSON.stringify(payload)
-    }).then(function(){console.log('syncEstado OK');setSyncStatus(true);}).catch(function(e){console.log('syncEstado ERROR:',e);setSyncStatus(false);});
-  }catch(e){console.log('syncEstado EXCEPTION:',e);setSyncStatus(false);}
+    }).then(function(){setSyncStatus(true);}).catch(function(){setSyncStatus(false);});
+  }catch(e){setSyncStatus(false);}
 }
 
 function loadEstado(cb){
@@ -407,7 +405,6 @@ function loadEstado(cb){
     .then(function(txt){
       try{
         var data=JSON.parse(txt);
-        console.log('loadEstado response: fecha='+data.fecha+' today='+today()+' match='+(data.fecha===today())+' ch_keys='+Object.keys(data.ch||{}).length);
         setSyncStatus(true);
         if(data&&data.fecha===today()){
         // Remote state wins completely — replace local with Sheets state
@@ -522,6 +519,7 @@ function tgl(id,w){
   const te=document.getElementById('ts_'+id);
   if(te)te.innerHTML=S.ch[k]?renderTs(k):'';
   sv();
+  LAST_LOCAL_CHANGE=Date.now();
   syncEstado();
 }
 
@@ -805,6 +803,7 @@ function gRegTubos(){
 }
 
 var LAST_SAVE_ALL=0;
+var LAST_LOCAL_CHANGE=0; // timestamp of last local check change
 
 function guardarTodo(){
   var now=Date.now();
@@ -1288,7 +1287,8 @@ loadEstado(function(){rDiarias();});
 
 // Poll Sheets every 30 seconds to sync checks from other devices
 setInterval(function(){
-  console.log('polling Sheets at', new Date().toLocaleTimeString());
+  // Don't overwrite local state if changed in last 10 seconds
+  if(Date.now()-LAST_LOCAL_CHANGE < 10000) return;
   loadEstado(function(){
     if(CUR==='diarias')rDiarias();
     else if(CUR==='semanales')rSem();
