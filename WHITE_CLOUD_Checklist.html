@@ -850,6 +850,49 @@ function gRegTubos(){
 var LAST_SAVE_ALL=0;
 var LAST_LOCAL_CHANGE=0; // timestamp of last local check change
 
+// Reminder modal CSS
+(function(){
+  var st=document.createElement('style');
+  st.textContent=
+    '#reminder-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:1rem}'+
+    '#reminder-overlay.show{display:flex}'+
+    '#reminder-box{background:var(--bg1);border-radius:16px;padding:1.25rem 1.25rem 1rem;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.25)}'+
+    '#reminder-box h3{font-size:15px;font-weight:700;color:var(--text1);margin-bottom:.75rem;display:flex;align-items:center;gap:.4rem}'+
+    '#reminder-box .rm-item{display:flex;gap:.6rem;margin-bottom:.6rem;padding:.6rem .75rem;border-radius:10px;font-size:13px;line-height:1.5;color:var(--text2)}'+
+    '#reminder-box .rm-item.blue{background:#eff6ff;border-left:3px solid #1d4ed8}'+
+    '#reminder-box .rm-item.orange{background:#fff7ed;border-left:3px solid #b45309}'+
+    '#reminder-box .rm-btn{width:100%;margin-top:.5rem;padding:.6rem;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}';
+  document.head.appendChild(st);
+  var overlay=document.createElement('div');
+  overlay.id='reminder-overlay';
+  overlay.innerHTML=
+    '<div id="reminder-box">'+
+    '<h3>⏰ Recordatorio de turno</h3>'+
+    '<div class="rm-item blue">'+
+    '<span style="font-size:18px;flex-shrink:0">📵</span>'+
+    '<div><strong>Desconexión digital invertida</strong><br>Recuerda depositar tu móvil personal en la caja del almacén durante todo el turno y registrarlo en la pestaña Desconexion.</div>'+
+    '</div>'+
+    '<div class="rm-item blue">'+
+    '<span style="font-size:18px;flex-shrink:0">🕐</span>'+
+    '<div><strong>Fichaje en SESAME</strong><br>Ficha tu <strong>entrada</strong> al iniciar el turno y tu <strong>salida</strong> al finalizar. Obligatorio — Art. 34.9 ET.</div>'+
+    '</div>'+
+    '<div class="rm-item orange">'+
+    '<span style="font-size:18px;flex-shrink:0">💾</span>'+
+    '<div><strong>Al finalizar tu turno</strong><br>Revisa que todas las tareas de tu turno estén completadas y pulsa <strong>Guardar todos los registros del turno</strong> antes de salir.</div>'+
+    '</div>'+
+    '<button class="rm-btn" onclick="document.getElementById(\'reminder-overlay\').classList.remove(\'show\')">✓ Entendido</button>'+
+    '</div>';
+  document.body.appendChild(overlay);
+})();
+
+function showReminder(){
+  document.getElementById('reminder-overlay').classList.add('show');
+}
+
+// Show reminder immediately on load, then every 30 minutes
+setTimeout(showReminder, 2000);
+setInterval(showReminder, 30*60*1000);
+
 function guardarTodo(){
   var now=Date.now();
   if(now-LAST_SAVE_ALL<30000){
