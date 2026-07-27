@@ -1390,7 +1390,7 @@ loadEstado(function(){rDiarias();});
 
 // Poll Sheets every 5 minutes to sync checks from other devices
 setInterval(function(){
-  if(Date.now()-LAST_LOCAL_CHANGE < 10000) return;
+  if(Date.now()-LAST_LOCAL_CHANGE < 60000) return;
   // Save any active textarea content before reloading
   var activeTextareas={};
   document.querySelectorAll('textarea').forEach(function(ta){
