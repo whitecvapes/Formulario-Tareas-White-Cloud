@@ -385,13 +385,14 @@ function syncEstado(){
       dm:S.dm||[],
       rc:RC||[]
     };
+    console.log('syncEstado firing, ch keys:', Object.keys(S.ch||{}).length);
     fetch(SHEETS_URL,{
       method:'POST',
       mode:'no-cors',
       headers:{'Content-Type':'text/plain'},
       body:JSON.stringify(payload)
-    }).then(function(){setSyncStatus(true);}).catch(function(){setSyncStatus(false);});
-  }catch(e){setSyncStatus(false);}
+    }).then(function(){console.log('syncEstado OK');setSyncStatus(true);}).catch(function(e){console.log('syncEstado FAIL',e);setSyncStatus(false);});
+  }catch(e){console.log('syncEstado ERROR',e);setSyncStatus(false);}
 }
 
 function loadEstado(cb){
