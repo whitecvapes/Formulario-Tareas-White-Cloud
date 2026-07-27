@@ -350,7 +350,7 @@ function sendToSheets(entry){
   try{
     fetch(SHEETS_URL,{
       method:'POST',
-      mode:'no-cors',
+      redirect:'follow',
       headers:{'Content-Type':'text/plain'},
       body:JSON.stringify(entry)
     }).catch(function(){});
@@ -388,7 +388,7 @@ function syncEstado(){
     console.log('syncEstado firing, ch keys:', Object.keys(S.ch||{}).length);
     fetch(SHEETS_URL,{
       method:'POST',
-      mode:'no-cors',
+      redirect:'follow',
       headers:{'Content-Type':'text/plain'},
       body:JSON.stringify(payload)
     }).then(function(){console.log('syncEstado OK');setSyncStatus(true);}).catch(function(e){console.log('syncEstado FAIL',e);setSyncStatus(false);});
