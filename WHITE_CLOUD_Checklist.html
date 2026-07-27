@@ -348,11 +348,8 @@ const SHEETS_URL='https://script.google.com/macros/s/AKfycbxwXZ1n6vDv5qoh90kytNl
 
 function sendToSheets(entry){
   try{
-    fetch(SHEETS_URL,{
-      method:'POST',
-      mode:'no-cors',
-      body:new URLSearchParams({data:JSON.stringify(entry)})
-    }).catch(function(){});
+    var params='?action=saveRegistro&data='+encodeURIComponent(JSON.stringify(entry));
+    fetch(SHEETS_URL+params).catch(function(){});
   }catch(e){}
 }
 
