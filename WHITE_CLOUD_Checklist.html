@@ -410,9 +410,19 @@ function loadEstado(cb){
         var data=JSON.parse(txt);
         setSyncStatus(true);
         if(data&&data.fecha===today()){
-        // Remote state wins completely — replace local with Sheets state
-        if(data.ch) S.ch=data.ch;
-        if(data.che) S.che=data.che;
+        // Merge: apply checks from Sheets but don't remove local ones
+        if(data.ch){
+          if(!S.ch)S.ch={};
+          Object.keys(data.ch).forEach(function(k){
+            if(data.ch[k])S.ch[k]=data.ch[k];
+          });
+        }
+        if(data.che){
+          if(!S.che)S.che={};
+          Object.keys(data.che).forEach(function(k){
+            if(!S.che[k]&&data.che[k])S.che[k]=data.che[k];
+          });
+        }
         if(data.wch) S.wch=data.wch;
         if(data.wcom) S.wcom=data.wcom;
         if(data.wche) S.wche=data.wche;
