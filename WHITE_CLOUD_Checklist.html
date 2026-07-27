@@ -1385,24 +1385,29 @@ function initDates(){
 load();initDates();
 document.getElementById('emp').value=S.em||'';
 document.getElementById('trn').value=S.tr||'mañana';
-// loadEstado on startup TEMPORARILY DISABLED
-// loadEstado(function(){rDiarias();});
-rDiarias();
+// Load live estado from Sheets first, then render
+loadEstado(function(){rDiarias();});
 
-// Poll Sheets every 30 seconds to sync checks from other devices
-// TEMPORARILY DISABLED until POST to Sheets is fixed
-/*
+// Poll Sheets every 5 minutes to sync checks from other devices
 setInterval(function(){
-  // Don't overwrite local state if changed in last 10 seconds
   if(Date.now()-LAST_LOCAL_CHANGE < 10000) return;
+  // Save any active textarea content before reloading
+  var activeTextareas={};
+  document.querySelectorAll('textarea').forEach(function(ta){
+    if(ta.id&&ta.value)activeTextareas[ta.id]=ta.value;
+  });
   loadEstado(function(){
     if(CUR==='diarias')rDiarias();
     else if(CUR==='semanales')rSem();
     else if(CUR==='desconexion')rDesconexion();
     else if(CUR==='recepciones')rRec();
+    // Restore textarea content after re-render
+    Object.keys(activeTextareas).forEach(function(id){
+      var ta=document.getElementById(id);
+      if(ta)ta.value=activeTextareas[id];
+    });
   });
-}, 30000);
-*/
+}, 5*60*1000);
 // Restore cajón azul from its own key if missing
 try{
   var biStored=localStorage.getItem(K+'bi');
