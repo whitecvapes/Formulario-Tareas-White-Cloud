@@ -385,11 +385,18 @@ function syncEstado(){
       rc:RC||[]
     };
     console.log('syncEstado firing, ch keys:', Object.keys(S.ch||{}).length);
-    fetch(SHEETS_URL,{
-      method:'POST',
-      mode:'no-cors',
-      body:new URLSearchParams({data:JSON.stringify(payload)})
-    }).then(function(){console.log('syncEstado OK');setSyncStatus(true);}).catch(function(e){console.log('syncEstado FAIL',e);setSyncStatus(false);});
+    var params='?action=syncEstado&fecha='+encodeURIComponent(today())+
+      '&ch='+encodeURIComponent(JSON.stringify(S.ch||{}))+
+      '&che='+encodeURIComponent(JSON.stringify(S.che||{}))+
+      '&wch='+encodeURIComponent(JSON.stringify(S.wch||{}))+
+      '&wcom='+encodeURIComponent(JSON.stringify(S.wcom||{}))+
+      '&wche='+encodeURIComponent(JSON.stringify(S.wche||{}))+
+      '&dm='+encodeURIComponent(JSON.stringify(S.dm||[]))+
+      '&rc='+encodeURIComponent(JSON.stringify(RC||[]))+
+      '&cam_obs='+encodeURIComponent(S.cam_obs||'');
+    fetch(SHEETS_URL+params)
+      .then(function(){console.log('syncEstado OK');setSyncStatus(true);})
+      .catch(function(e){console.log('syncEstado FAIL',e);setSyncStatus(false);});
   }catch(e){console.log('syncEstado ERROR',e);setSyncStatus(false);}
 }
 
