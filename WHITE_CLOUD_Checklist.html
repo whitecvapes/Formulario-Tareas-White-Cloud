@@ -1388,10 +1388,13 @@ function initDates(){
 load();initDates();
 document.getElementById('emp').value=S.em||'';
 document.getElementById('trn').value=S.tr||'mañana';
-// Load live estado from Sheets first, then render
-loadEstado(function(){rDiarias();});
+// loadEstado on startup TEMPORARILY DISABLED
+// loadEstado(function(){rDiarias();});
+rDiarias();
 
 // Poll Sheets every 30 seconds to sync checks from other devices
+// TEMPORARILY DISABLED until POST to Sheets is fixed
+/*
 setInterval(function(){
   // Don't overwrite local state if changed in last 10 seconds
   if(Date.now()-LAST_LOCAL_CHANGE < 10000) return;
@@ -1402,6 +1405,7 @@ setInterval(function(){
     else if(CUR==='recepciones')rRec();
   });
 }, 30000);
+*/
 // Restore cajón azul from its own key if missing
 try{
   var biStored=localStorage.getItem(K+'bi');
