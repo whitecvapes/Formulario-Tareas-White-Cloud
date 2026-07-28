@@ -465,11 +465,20 @@ function loadEstado(cb){
           if(RC.length>200)RC=RC.slice(0,200);
         }
         if(data.cam_obs!==undefined) S.cam_obs=data.cam_obs;
-        if(Array.isArray(data.SATS)) S.SATS=data.SATS;
-        if(Array.isArray(data.ENCARGOS)) S.ENCARGOS=data.ENCARGOS;
-        if(Array.isArray(data.ENVIOS)) S.ENVIOS=data.ENVIOS;
-        if(data.comments) S.comments=data.comments;
-        if(Array.isArray(data.cajComments)) S.cajComments=data.cajComments;
+        // Nunca sobrescribir datos locales con listas vacías del servidor:
+        // se fusiona por id (lo del servidor manda en coincidencias, lo local nuevo se conserva)
+        function mergeById(local,remote){
+          if(!Array.isArray(remote)||!remote.length)return local||[];
+          var out=remote.slice();
+          var ids={};remote.forEach(function(x){if(x&&x.id!==undefined)ids[String(x.id)]=1;});
+          (local||[]).forEach(function(x){if(!(x&&x.id!==undefined&&ids[String(x.id)]))out.push(x);});
+          return out;
+        }
+        if(Array.isArray(data.SATS)&&data.SATS.length) S.SATS=mergeById(S.SATS,data.SATS);
+        if(Array.isArray(data.ENCARGOS)&&data.ENCARGOS.length) S.ENCARGOS=mergeById(S.ENCARGOS,data.ENCARGOS);
+        if(Array.isArray(data.ENVIOS)&&data.ENVIOS.length) S.ENVIOS=mergeById(S.ENVIOS,data.ENVIOS);
+        if(data.comments&&Object.keys(data.comments).length) S.comments=data.comments;
+        if(Array.isArray(data.cajComments)&&data.cajComments.length) S.cajComments=data.cajComments;
         sv();
       } else if(data&&data.fecha&&data.fecha!==today()){
         // Different day in Sheets — ignore, keep local
