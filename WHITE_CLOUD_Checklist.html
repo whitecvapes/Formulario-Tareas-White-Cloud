@@ -986,10 +986,11 @@ function buildTrackerHtml(items, prefix, addFn, delFn, notaFn, title, placeholde
     '<input id="'+prefix+'_desc" type="text" placeholder="'+placeholder_desc+'" style="width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">'+
     '<input id="'+prefix+'_emp" type="text" placeholder="👤 Empleado/a que lo inicia" value="'+empPre+'" style="width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">'+
     ((prefix==='sat'||prefix==='encargo')?
-    '<select id="'+prefix+'_prov" style="width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">'+
-    '<option value="">🏭 Proveedor con el que se gestiona (opcional)...</option>'+
+    '<select id="'+prefix+'_prov" onchange="var o=document.getElementById(this.id+\'_otro\');if(o)o.style.display=this.value===\'Otro\'?\'block\':\'none\';" style="width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">'+
+    '<option value="">🏭 Proveedor con el que se gestiona...</option>'+
     PRV.map(function(p){return '<option>'+p+'</option>';}).join('')+
-    '</select>':'')+
+    '</select>'+
+    '<input id="'+prefix+'_prov_otro" type="text" placeholder="✏️ Escribe el proveedor..." style="display:none;width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">':'')+
     '<div style="display:flex;gap:.3rem;margin-bottom:.3rem">'+
     '<input id="'+prefix+'_pos" type="text" placeholder="🧾 Nº POS / Ticket" style="flex:1;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
     '<input id="'+prefix+'_fecha_entrega" type="text" placeholder="📅 Fecha del ticket (ej: 28/07/2026)" style="flex:1;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
@@ -1014,6 +1015,14 @@ function addTracker(prefix){
   if(!S[key])S[key]=[];
   var pos=document.getElementById(prefix+'_pos')?.value?.trim()||'';
   var prov=document.getElementById(prefix+'_prov')?.value||'';
+  if(prefix==='sat'||prefix==='encargo'){
+    if(!prov){alert('Selecciona el proveedor con el que se gestiona.');return;}
+    if(prov==='Otro'){
+      var provOtro=document.getElementById(prefix+'_prov_otro')?.value?.trim()||'';
+      if(!provOtro){alert('Has elegido «Otro» — escribe el nombre del proveedor.');return;}
+      prov=provOtro;
+    }
+  }
   var fecha_entrega=document.getElementById(prefix+'_fecha_entrega')?.value?.trim()||'';
   var num_envio=document.getElementById(prefix+'_num_envio')?.value?.trim()||'';
   var empresa_envio=document.getElementById(prefix+'_empresa_envio')?.value?.trim()||'';
@@ -1022,6 +1031,8 @@ function addTracker(prefix){
   document.getElementById(prefix+'_desc').value='';
   if(document.getElementById(prefix+'_pos'))document.getElementById(prefix+'_pos').value='';
   if(document.getElementById(prefix+'_prov'))document.getElementById(prefix+'_prov').value='';
+  var po=document.getElementById(prefix+'_prov_otro');
+  if(po){po.value='';po.style.display='none';}
   if(document.getElementById(prefix+'_fecha_entrega'))document.getElementById(prefix+'_fecha_entrega').value='';
   if(document.getElementById(prefix+'_num_envio'))document.getElementById(prefix+'_num_envio').value='';
   if(document.getElementById(prefix+'_empresa_envio'))document.getElementById(prefix+'_empresa_envio').value='';
@@ -2004,12 +2015,12 @@ function rAyuda(){
     },
     {ic:"🔧",ti:"SATs — seguimiento de reparaciones",body:
       "<p>La pestaña SATs registra los dispositivos de clientes en reparación. No se borran con el reinicio de día ni de semana — solo Josep los elimina con su PIN cuando se entrega el dispositivo.</p>"+
-      "<p style=\"margin-top:.4rem\">Cada SAT incluye: cliente · descripción · <strong>👤 empleado/a que lo inicia</strong> (viene rellenado con tu nombre, cámbialo si procede) · <strong>🏭 proveedor con el que se gestiona</strong> (desplegable, opcional) · POS/ticket · fecha del ticket · historial de notas.</p>"+
+      "<p style=\"margin-top:.4rem\">Cada SAT incluye: cliente · descripción · <strong>👤 empleado/a que lo inicia</strong> (viene rellenado con tu nombre, cámbialo si procede) · <strong>🏭 proveedor con el que se gestiona</strong> (desplegable obligatorio; si eliges «Otro» aparece un recuadro para escribirlo) · POS/ticket · fecha del ticket · historial de notas.</p>"+
       "<p style=\"margin-top:.4rem\">Para añadir seguimiento escribe la nota, indica quién la añade en el campo <strong>👤 Quién</strong> y pulsa <strong>💾 Guardar</strong>. Cada nota queda firmada: <em>✍️ Añadido por — fecha</em>.</p>"+
       "<p style=\"margin-top:.4rem\">Cuando el dispositivo se entregue, deja una nota (\"entregado\") — el borrado de la ficha lo hace Josep con su PIN.</p>"
     },
     {ic:"🛒",ti:"Encargos — pedidos de clientes",body:
-      "<p>La pestaña Encargos registra los pedidos realizados por clientes. Mismo funcionamiento que SATs: quién lo inicia, proveedor con el que se gestiona (desplegable), POS/ticket, fecha y notas firmadas.</p>"+
+      "<p>La pestaña Encargos registra los pedidos realizados por clientes. Mismo funcionamiento que SATs: quién lo inicia, proveedor con el que se gestiona (desplegable obligatorio, con opción «Otro» para escribirlo a mano), POS/ticket, fecha y notas firmadas.</p>"+
       "<p style=\"margin-top:.4rem\">Úsalo para registrar cualquier producto pedido expresamente para un cliente y hacer seguimiento hasta su recogida (llegó, avisado, recogido...).</p>"+
       "<p style=\"margin-top:.4rem\">Solo Josep puede borrar la ficha o sus notas con su PIN — al recogerse, deja una nota indicándolo.</p>"
     },
