@@ -173,7 +173,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div style="font-size:24px;flex-shrink:0">📵</div>
   <div>
     <div style="font-size:13px;font-weight:700;letter-spacing:.01em">DESCONEXIÓN DIGITAL INVERTIDA</div>
-    <div style="font-size:12px;opacity:.92;margin-top:2px;line-height:1.5">Al iniciar tu turno <strong>deposita tu móvil personal</strong> en la caja del almacén · Al finalizar tu turno <strong>recógelo</strong> · Registra ambas acciones en la pestaña <strong>📵 Desconexion</strong></div>
+    <div style="font-size:12px;opacity:.92;margin-top:2px;line-height:1.5">Al iniciar tu turno <strong>deposita tu móvil personal</strong> en la caja del almacén · Al finalizar tu turno <strong>recógelo</strong> · Registra ambas acciones en la pestaña <a href="#" onclick="go('desconexion',document.querySelector('.tab[onclick*=desconexion]'));return false" style="color:#fff;font-weight:700;text-decoration:underline">📵 Desconexion</a></div>
   </div>
 </div>
 
@@ -189,7 +189,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div style="font-size:24px;flex-shrink:0">💾</div>
   <div>
     <div style="font-size:13px;font-weight:700;letter-spacing:.01em">GUARDAR REGISTRO AL FINALIZAR EL TURNO</div>
-    <div style="font-size:12px;opacity:.92;margin-top:2px;line-height:1.5">Antes de salir pulsa <strong>Guardar registro del turno</strong> en la pestaña Diarias · Los checks permanecen visibles para el siguiente turno</div>
+    <div style="font-size:12px;opacity:.92;margin-top:2px;line-height:1.5">Antes de salir pulsa <strong>Guardar registro del turno</strong> en la pestaña <a href="#" onclick="go('diarias',document.querySelector('.tab[onclick*=diarias]'));return false" style="color:#fff;font-weight:700;text-decoration:underline">Diarias</a> · Los checks permanecen visibles para el siguiente turno</div>
   </div>
 </div>
 
@@ -274,7 +274,7 @@ const SD=[
     {id:'m1',tx:'Revisar SATs pendientes y actualizar estado',no:'Contactar al cliente si procede — §13.2.3 · <a href="#" onclick="event.stopPropagation();go(\'sats\',document.querySelector(\'.tab[onclick*=sats]\'))">→ Ir a SATs</a>'},
     {id:'m1b',tx:'Revisar encargos pendientes y actualizar estado',no:'Contactar al cliente si procede · <a href="#" onclick="event.stopPropagation();go(\'encargos\',document.querySelector(\'.tab[onclick*=encargos]\'))">→ Ir a Encargos</a>'},
     {id:'m2',tx:'Revisar reservas activas y caducidad (máx. 72h)',no:'Cancelar en OSPOS y reponer en tienda si ha expirado — §14 · <a href="#" onclick="event.stopPropagation();go(\'encargos\',document.querySelector(\'.tab[onclick*=encargos]\')">→ Ir a Encargos</a>'},
-    {id:'m3',tx:'Revisar adeudados pendientes en OSPOS (envíos con pago pendiente)',no:'Si cliente ha confirmado transferencia → avisar a gerencia — §11.3'},
+    {id:'m3',tx:'Revisar adeudados pendientes en OSPOS (envíos con pago pendiente)',no:'Si cliente ha confirmado transferencia → avisar a gerencia — §11.3 · <a href="#" onclick="event.stopPropagation();go(\'envios\',document.querySelector(\'.tab[onclick*=envios]\'))">→ Ir a Envíos</a>'},
     {id:'m4',tx:'Revisar seguimientos GLS/ViaXpress — enviar nº tracking al cliente si el paquete ha salido',no:'Cerrar en la plataforma los ya expedidos — §11.3.2 · §11.3.3 · <a href="#" onclick="event.stopPropagation();go(\'envios\',document.querySelector(\'.tab[onclick*=envios]\'))">→ Ir a Envíos</a>'},
     {id:'m5',tx:'Revisar redes sociales: Instagram, Facebook, Google Business',no:'Notificaciones, mensajes — §6'},
     {id:'t1',tx:'Mantener mostradores limpios y despejados en todo momento',no:''},
@@ -283,7 +283,7 @@ const SD=[
     {id:'t10',tx:'Producto nuevo recibido: etiquetar, dar visibilidad y comunicar al compañero',no:'En cambio de turno o por grupo WA — §5.2'},
     {id:'t11',tx:'Merchandising recibido de proveedor: comunicar a gerencia y entregar en tienda',no:'No retener — §28'},
     {id:'t12',tx:'Verificar stock productos de limpieza y avisar si baja del mínimo',no:'Mín. 4 uds. de cada: Papel rollos · Papel culo · Limpiacristales · Fregasuelos · Lejía · Toallitas · Bolsas basura · Gamuzas MOPA — avisar a gerencia si baja del mínimo'},
-    {id:'t13',tx:'Verificar nivel de billetes en cajón azul — avisar a gerencia si < 50€',no:'Revisión diaria obligatoria · cualquier uso del cajón azul → registrar en hoja: razón, empleado, hora, cantidad'},
+    {id:'t13',tx:'Verificar nivel de billetes en cajón azul — avisar a gerencia si < 50€',no:'Revisión diaria obligatoria · cualquier uso del cajón azul → registrar en hoja: razón, empleado, hora, cantidad · <a href="#" onclick="event.stopPropagation();go(\'cashlogy\',document.querySelector(\'.tab[onclick*=cashlogy]\'))">→ Ir a Cashlogy</a>'},
   ]},
   {id:'cam',ic:'💬',cl:'#e65100',ti:'Cambio de turno',ta:[
     {id:'c1',tx:'Foto total datáfono → enviar al grupo WA',no:''},
@@ -291,15 +291,15 @@ const SD=[
     {id:'c4',tx:'Cashlogy cierre: conectar impresora USB → foto ticket cierre → grupo WA',no:''},
     {id:'c3',tx:'Rellenar formulario cambio de turno en Chrome (Form Cierres de Caja)',no:''},
     {id:'c5',tx:'Cashlogy apertura: foto ticket apertura → grupo WA → apagar impresora → desconectar USB',no:'Apertura y cierre se hacen en el mismo cambio — desconectar USB al terminar'},
-    {id:'c6',tx:'Informar verbalmente al compañero del estado de la tienda',no:'Incidencias, SATs, reservas, adeudados, envíos pendientes, recepciones en curso'},
-    {id:'c7',tx:'Si hay recepción abierta: comunicar al compañero y dejar anotado el estado',no:'Las recepciones quedan vinculadas al usuario que las inicia — §7.1'},
+    {id:'c6',tx:'Informar verbalmente al compañero del estado de la tienda',no:'Incidencias, SATs, reservas, adeudados, envíos pendientes, recepciones en curso · Revisar: <a href="#" onclick="event.stopPropagation();go(\'sats\',document.querySelector(\'.tab[onclick*=sats]\'))">SATs</a> · <a href="#" onclick="event.stopPropagation();go(\'encargos\',document.querySelector(\'.tab[onclick*=encargos]\'))">Encargos</a> · <a href="#" onclick="event.stopPropagation();go(\'envios\',document.querySelector(\'.tab[onclick*=envios]\'))">Envíos</a> · <a href="#" onclick="event.stopPropagation();go(\'recepciones\',document.querySelector(\'.tab[onclick*=recepciones]\'))">Recepciones</a>'},
+    {id:'c7',tx:'Si hay recepción abierta: comunicar al compañero y dejar anotado el estado',no:'Las recepciones quedan vinculadas al usuario que las inicia — §7.1 · <a href="#" onclick="event.stopPropagation();go(\'recepciones\',document.querySelector(\'.tab[onclick*=recepciones]\'))">→ Ir a Recepciones</a>'},
   ]},
   {id:'tar',ic:'🌆',cl:'#0277bd',ti:'Turno de tarde',ta:[
     {id:'td0',tx:'Tirar cajas vacías de recepciones de proveedores',no:'Salvo indicación contraria de gerencia — si se guardan → trastienda'},
     {id:'td1',tx:'Revisar SATs pendientes y actualizar estado',no:'Contactar al cliente si procede — §13.2.3 · <a href="#" onclick="event.stopPropagation();go(\'sats\',document.querySelector(\'.tab[onclick*=sats]\'))">→ Ir a SATs</a>'},
     {id:'td1b',tx:'Revisar encargos pendientes y actualizar estado',no:'Contactar al cliente si procede · <a href="#" onclick="event.stopPropagation();go(\'encargos\',document.querySelector(\'.tab[onclick*=encargos]\'))">→ Ir a Encargos</a>'},
     {id:'td2',tx:'Revisar reservas activas y caducidad (máx. 72h)',no:'Cancelar en OSPOS y reponer en tienda si ha expirado — §14 · <a href="#" onclick="event.stopPropagation();go(\'encargos\',document.querySelector(\'.tab[onclick*=encargos]\')">→ Ir a Encargos</a>'},
-    {id:'td3',tx:'Revisar adeudados pendientes en OSPOS (envíos con pago pendiente)',no:'Si cliente ha confirmado transferencia → avisar a gerencia — §11.3'},
+    {id:'td3',tx:'Revisar adeudados pendientes en OSPOS (envíos con pago pendiente)',no:'Si cliente ha confirmado transferencia → avisar a gerencia — §11.3 · <a href="#" onclick="event.stopPropagation();go(\'envios\',document.querySelector(\'.tab[onclick*=envios]\'))">→ Ir a Envíos</a>'},
     {id:'td4',tx:'Revisar seguimientos GLS/ViaXpress — enviar nº tracking al cliente si el paquete ha salido',no:'Cerrar en la plataforma los ya expedidos — §11.3.2 · §11.3.3 · <a href="#" onclick="event.stopPropagation();go(\'envios\',document.querySelector(\'.tab[onclick*=envios]\'))">→ Ir a Envíos</a>'},
     {id:'td5',tx:'Revisar redes sociales: Instagram, Facebook, Google Business',no:'Notificaciones, mensajes — §6'},
     {id:'t1b',tx:'Mantener mostradores limpios y despejados en todo momento',no:''},
@@ -308,7 +308,7 @@ const SD=[
     {id:'t10b',tx:'Producto nuevo recibido: etiquetar, dar visibilidad y comunicar al compañero',no:'En cambio de turno o por grupo WA — §5.2'},
     {id:'t11b',tx:'Merchandising recibido de proveedor: comunicar a gerencia y entregar en tienda',no:'No retener — §28'},
     {id:'t12b',tx:'Verificar stock productos de limpieza y avisar si baja del mínimo',no:'Mín. 4 uds. de cada: Papel rollos · Papel culo · Limpiacristales · Fregasuelos · Lejía · Toallitas · Bolsas basura · Gamuzas MOPA — avisar a gerencia si baja del mínimo'},
-    {id:'t13b',tx:'Verificar nivel de billetes en cajón azul — avisar a gerencia si < 50€',no:'Revisión diaria obligatoria · cualquier uso del cajón azul → registrar en hoja: razón, empleado, hora, cantidad'},
+    {id:'t13b',tx:'Verificar nivel de billetes en cajón azul — avisar a gerencia si < 50€',no:'Revisión diaria obligatoria · cualquier uso del cajón azul → registrar en hoja: razón, empleado, hora, cantidad · <a href="#" onclick="event.stopPropagation();go(\'cashlogy\',document.querySelector(\'.tab[onclick*=cashlogy]\'))">→ Ir a Cashlogy</a>'},
   ]},
   {id:'rpc',ic:'📋',cl:'#1a5276',ti:'Reposición pre-cierre',ta:[
     {id:'rc1',tx:'Revisar y reponer baldas: Nicokits, Shades, Resistencias, Dispositivos',no:'Dejar bien repuesto para la apertura del día siguiente'},
