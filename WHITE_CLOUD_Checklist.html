@@ -488,10 +488,12 @@ function loadEstado(cb){
         // Nunca sobrescribir datos locales con listas vacías del servidor:
         // se fusiona por id (lo del servidor manda en coincidencias, lo local nuevo se conserva)
         function mergeById(local,remote){
-          if(!Array.isArray(remote)||!remote.length)return local||[];
-          var out=remote.slice();
-          var ids={};remote.forEach(function(x){if(x&&x.id!==undefined)ids[String(x.id)]=1;});
-          (local||[]).forEach(function(x){if(!(x&&x.id!==undefined&&ids[String(x.id)]))out.push(x);});
+          if(!Array.isArray(remote)||!remote.length)return dedupeList(local||[]);
+          var out=[],seen={};
+          remote.concat(local||[]).forEach(function(x){
+            var k=dedupeKey(x);
+            if(!seen[k]){seen[k]=1;out.push(x);}
+          });
           return out;
         }
         if(Array.isArray(data.SATS)&&data.SATS.length) S.SATS=filterTomb('SATS',mergeById(S.SATS,data.SATS));
@@ -546,6 +548,9 @@ function load(){
   if(!S.semana)S.semana=weekKey();
   if(!S.wch)S.wch={};
   if(!S.wcom)S.wcom={};
+  // limpieza de duplicados históricos (movimientos del cajón y fichas sin id)
+  S.cajComments=dedupeList(S.cajComments);
+  ['SATS','ENCARGOS','ENVIOS','EDGARS','SUGERENCIAS'].forEach(function(k){if(S[k])S[k]=dedupeList(S[k]);});
 }
 
 function weekKey(){
@@ -917,6 +922,19 @@ function unionTombs(a,b){
   });
   return out;
 }
+function dedupeKey(x){
+  if(x&&x.id!==undefined)return 'i'+String(x.id);
+  return 'k'+((x&&x.fecha)||'')+'|'+((x&&x.em)||'')+'|'+((x&&x.texto)||'')+'|'+((x&&x.desc)||'');
+}
+function dedupeList(arr){
+  var out=[],seen={};
+  (arr||[]).forEach(function(x){
+    var k=dedupeKey(x);
+    if(!seen[k]){seen[k]=1;out.push(x);}
+  });
+  return out;
+}
+
 function filterTomb(listKey,arr){
   var t=(S.tomb&&S.tomb[listKey])||[];
   if(!t.length)return arr||[];
@@ -1044,8 +1062,8 @@ function buildTrackerHtml(items, prefix, addFn, delFn, notaFn, title, placeholde
         '<div style="font-size:10px;color:var(--text3);margin-top:1px">👤 '+startLabel+' <strong>'+(item.em||'Sin nombre')+'</strong> · '+item.fecha+'</div>'+
         (item.telefono?'<div style="font-size:10px;color:var(--text3);margin-top:1px">📞 <strong>'+item.telefono+'</strong></div>':'')+
         (item.prov?'<div style="font-size:10px;color:var(--text3);margin-top:1px">🏭 Proveedor: <strong>'+item.prov+'</strong></div>':'')+
-        (item.pos?'<div style="font-size:10px;color:var(--text3);margin-top:1px">🧾 POS/Ticket: <strong>'+item.pos+'</strong></div>':'')+
-        (item.fecha_entrega?'<div style="font-size:10px;color:var(--text3);margin-top:1px">📅 Fecha compromiso: <strong>'+item.fecha_entrega+'</strong></div>':'')+
+        (item.pos||item.fecha_entrega?'<div style="font-size:10px;color:var(--text3);margin-top:1px">'+(item.pos?(prefix==='sat'?'🧾 Ticket compra: ':'🧾 POS/Ticket: ')+'<strong>'+item.pos+'</strong>':'')+(item.pos&&item.fecha_entrega?' · ':'')+(item.fecha_entrega?(prefix==='sat'?'📅 Compra: ':'📅 Fecha compromiso: ')+'<strong>'+item.fecha_entrega+'</strong>':'')+'</div>':'')+
+        (item.pos_sat||item.fecha_sat?'<div style="font-size:10px;color:var(--text3);margin-top:1px">'+(item.pos_sat?'🔧 Ticket SAT: <strong>'+item.pos_sat+'</strong>':'')+(item.pos_sat&&item.fecha_sat?' · ':'')+(item.fecha_sat?'📅 SAT generado: <strong>'+item.fecha_sat+'</strong>':'')+'</div>':'')+
         (item.num_envio?'<div style="font-size:10px;color:var(--text3);margin-top:1px">📦 Tracking: <strong>'+item.num_envio+'</strong>'+(item.empresa_envio?' · 🚚 '+item.empresa_envio:'')+'</div>':(item.empresa_envio?'<div style="font-size:10px;color:var(--text3);margin-top:1px">🚚 '+item.empresa_envio+'</div>':''))+
         '</div>'+
         '<div style="display:flex;flex-direction:column;gap:.25rem;flex-shrink:0;margin-left:.3rem">'+
@@ -1088,8 +1106,12 @@ function buildTrackerHtml(items, prefix, addFn, delFn, notaFn, title, placeholde
     '</select>'+
     '<input id="'+prefix+'_prov_otro" type="text" placeholder="✏️ Escribe el proveedor..." style="display:none;width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">':'')+
     (esCliente?'<div style="display:flex;gap:.3rem;margin-bottom:.3rem">'+
-    '<input id="'+prefix+'_pos" type="text" placeholder="🧾 Nº POS / Ticket" style="flex:1;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
-    '<input id="'+prefix+'_fecha_entrega" type="text" placeholder="📅 Fecha del ticket (ej: 28/07/2026)" style="flex:1;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
+    '<input id="'+prefix+'_pos" type="text" placeholder="'+(prefix==='sat'?'🧾 Nº POS / Ticket de compra':'🧾 Nº POS / Ticket')+'" style="flex:1;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
+    '<input id="'+prefix+'_fecha_entrega" type="text" placeholder="'+(prefix==='sat'?'📅 Fecha de compra (ej: 28/07/2026)':'📅 Fecha del ticket (ej: 28/07/2026)')+'" style="flex:1;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
+    '</div>':'')+
+    (prefix==='sat'?'<div style="display:flex;gap:.3rem;margin-bottom:.3rem">'+
+    '<input id="sat_pos_sat" type="text" placeholder="🔧 Nº POS / Ticket del SAT" style="flex:1;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
+    '<input id="sat_fecha_sat" type="text" placeholder="📅 Fecha de generación del SAT" value="'+new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})+'" style="flex:1;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
     '</div>':'')+
     (prefix==='envio'?
     '<div style="display:flex;gap:.3rem;margin-bottom:.3rem">'+
@@ -1121,9 +1143,11 @@ function addTracker(prefix){
     }
   }
   var fecha_entrega=document.getElementById(prefix+'_fecha_entrega')?.value?.trim()||'';
+  var pos_sat=document.getElementById(prefix+'_pos_sat')?.value?.trim()||'';
+  var fecha_sat=document.getElementById(prefix+'_fecha_sat')?.value?.trim()||'';
   var num_envio=document.getElementById(prefix+'_num_envio')?.value?.trim()||'';
   var empresa_envio=document.getElementById(prefix+'_empresa_envio')?.value?.trim()||'';
-  S[key].push({id:Date.now(),fecha:now,em:em,cliente:cliente,telefono:telefono,desc:desc,prov:prov,pos:pos,fecha_entrega:fecha_entrega,num_envio:num_envio,empresa_envio:empresa_envio,notas:[]});
+  S[key].push({id:Date.now(),fecha:now,em:em,cliente:cliente,telefono:telefono,desc:desc,prov:prov,pos:pos,fecha_entrega:fecha_entrega,pos_sat:pos_sat,fecha_sat:fecha_sat,num_envio:num_envio,empresa_envio:empresa_envio,notas:[]});
   if(document.getElementById(prefix+'_cliente'))document.getElementById(prefix+'_cliente').value='';
   if(document.getElementById(prefix+'_telefono'))document.getElementById(prefix+'_telefono').value='';
   document.getElementById(prefix+'_desc').value='';
@@ -1132,6 +1156,7 @@ function addTracker(prefix){
   var po=document.getElementById(prefix+'_prov_otro');
   if(po){po.value='';po.style.display='none';}
   if(document.getElementById(prefix+'_fecha_entrega'))document.getElementById(prefix+'_fecha_entrega').value='';
+  if(document.getElementById(prefix+'_pos_sat'))document.getElementById(prefix+'_pos_sat').value='';
   if(document.getElementById(prefix+'_num_envio'))document.getElementById(prefix+'_num_envio').value='';
   if(document.getElementById(prefix+'_empresa_envio'))document.getElementById(prefix+'_empresa_envio').value='';
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
@@ -1253,8 +1278,10 @@ function printTracker(prefix,idx){
   row('Teléfono',item.telefono);
   row('Descripción',item.desc);
   row('Proveedor',item.prov);
-  row('POS/Ticket',item.pos);
-  row('Fecha ticket',item.fecha_entrega);
+  row(prefix==='sat'?'Ticket compra':'POS/Ticket',item.pos);
+  row(prefix==='sat'?'Fecha compra':'Fecha ticket',item.fecha_entrega);
+  row('Ticket SAT',item.pos_sat);
+  row('SAT generado',item.fecha_sat);
   row('Tracking',item.num_envio);
   row('Transportista',item.empresa_envio);
   row('Registrado',item.fecha+(item.em?' — '+item.em:''));
@@ -2186,7 +2213,7 @@ function rAyuda(){
     },
     {ic:"🔧",ti:"SATs — seguimiento de reparaciones",body:
       "<p>La pestaña SATs registra los dispositivos de clientes en reparación. No se borran con el reinicio de día ni de semana — solo Josep los elimina con su PIN cuando se entrega el dispositivo.</p>"+
-      "<p style=\"margin-top:.4rem\">Cada SAT incluye: cliente · <strong>📞 teléfono</strong> · descripción · <strong>👤 empleado/a que lo inicia</strong> (viene rellenado con tu nombre, cámbialo si procede) · <strong>🏭 proveedor con el que se gestiona</strong> (desplegable obligatorio; si eliges «Otro» aparece un recuadro para escribirlo) · POS/ticket · fecha del ticket · historial de notas.</p>"+
+      "<p style=\"margin-top:.4rem\">Cada SAT incluye: cliente · <strong>📞 teléfono</strong> · descripción · <strong>👤 empleado/a que lo inicia</strong> (viene rellenado con tu nombre, cámbialo si procede) · <strong>🏭 proveedor con el que se gestiona</strong> (desplegable obligatorio; si eliges «Otro» aparece un recuadro para escribirlo) · <strong>🧾 POS/ticket y fecha de COMPRA</strong> del artículo · <strong>🔧 POS/ticket y fecha de generación del SAT</strong> (la fecha viene rellenada con hoy) · historial de notas.</p>"+
       "<p style=\"margin-top:.4rem\"><strong>🖨 Imprimir:</strong> cada ficha tiene un botón que genera un ticket de 80 mm con todos los datos y notas, listo para la impresora térmica. Se abre el diálogo de impresión — con la Unykach como impresora predeterminada, basta confirmar.</p>"+
       "<p style=\"margin-top:.4rem\">Para añadir seguimiento escribe la nota, indica quién la añade en el campo <strong>👤 Quién</strong> y pulsa <strong>💾 Guardar</strong>. Cada nota queda firmada: <em>✍️ Añadido por — fecha</em>.</p>"+
       "<p style=\"margin-top:.4rem\">Cuando el dispositivo se entregue, deja una nota (\"entregado\") — el borrado de la ficha lo hace Josep con su PIN.</p>"
