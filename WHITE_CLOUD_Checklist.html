@@ -144,6 +144,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tp-m{background:var(--amber-bg);color:var(--amber)}
 .tp-t{background:var(--blue2-bg);color:var(--blue2)}
 .tp-c{background:var(--purple-bg);color:var(--purple)}
+#marquee:hover #marquee-inner{animation-play-state:paused}
+@keyframes marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion: reduce){#marquee-inner{animation:none !important}}
 </style>
 </head>
 <body>
@@ -167,6 +170,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button class="rbtn" onclick="resetSem()" style="border-color:var(--orange-light);color:var(--orange)">&#x1F4C5; Nueva semana</button>
     <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:2px;line-height:1.3">Pulsar al inicio<br>de cada semana</div>
   </div>
+</div>
+
+<div id="marquee" style="overflow:hidden;white-space:nowrap;background:#1e1b4b;border-radius:10px;margin-bottom:.6rem;padding:.35rem 0;border:1px solid #4338ca">
+  <div id="marquee-inner" style="display:inline-block;white-space:nowrap;font-size:12px;font-weight:600;color:#fbbf24;letter-spacing:.01em">⏳ Cargando avisos...</div>
 </div>
 
 <div style="background:#1d4ed8;color:#fff;border-radius:12px;padding:.75rem 1rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.75rem">
@@ -359,6 +366,28 @@ const PINES={
   'gerencia':'11661166'  // PIN maestro — funciona siempre
 };
 // Para añadir un empleado: añade una línea con 'Nombre':'PIN' siguiendo el mismo formato
+
+// ── AVISOS DE LA MARQUESINA SUPERIOR ──
+// Edita, añade o quita líneas libremente — cada texto es un aviso que rota en el banner superior
+const MARQUEE_ITEMS=[
+  '🔧 SATs: crear ficha del cliente, venta en «SAT WHITE CLOUD» e imprimir 3 COPIAS del ticket — recogida · archivo · caja del dispositivo — §13.2.1',
+  '🛒 Reservas: venta sin tasas a «Reservas Reservas» + 2 copias del ticket (pizarra · producto) y avisar al grupo de WA — §14',
+  '🚚 Envíos: ficha completa del cliente, pedido como adeudado, 2 copias del ticket y enviar IBAN por WhatsApp — §11.3',
+  '📦 Encargos: cobrar mínimo el 50%, 2 tickets (cliente · nosotros) y avisar al grupo de WA — §9',
+  '💰 Cajón azul: cualquier uso → registrarlo en Cashlogy (razón, empleado, hora, cantidad) · avisar a gerencia si baja de 50€',
+  '📵 Móvil personal: en la caja del almacén durante todo el turno y registrado en la pestaña Desconexión — §20.3',
+  '📸 Recepciones con incidencia: foto + aviso a gerencia · artículos faltantes con el nombre EXACTO de OSPOS',
+  '🕐 SESAME: fichar entrada y salida es obligatorio — Art. 34.9 ET',
+  '🎵 Música: solo desde SoundToro con licencia — prohibido reproducir otra fuente — §24'
+];
+function renderMarquee(){
+  var el=document.getElementById('marquee-inner');
+  if(!el||!MARQUEE_ITEMS.length)return;
+  var txt=MARQUEE_ITEMS.join('&nbsp;&nbsp;&nbsp;✦&nbsp;&nbsp;&nbsp;');
+  el.innerHTML='<span>'+txt+'&nbsp;&nbsp;&nbsp;✦&nbsp;&nbsp;&nbsp;</span><span>'+txt+'&nbsp;&nbsp;&nbsp;✦&nbsp;&nbsp;&nbsp;</span>';
+  var chars=MARQUEE_ITEMS.join('   ').length;
+  el.style.animation='marq '+Math.max(30,Math.round(chars/5))+'s linear infinite';
+}
 const SHEETS_URL='https://script.google.com/macros/s/AKfycbxwXZ1n6vDv5qoh90kytNlDHlwgVKouiEywhFUamIQ5wp3B9AVqKgPAkXa7MDG_NT9O/exec';
 
 function sendToSheets(entry){
@@ -401,7 +430,10 @@ function syncFields(){
     SUGERENCIAS:JSON.stringify((S.SUGERENCIAS||[]).slice(0,50)),
     comments:JSON.stringify(S.comments||{}),
     cajComments:JSON.stringify((S.cajComments||[]).slice(0,50)),
-    tomb:JSON.stringify(S.tomb||{})
+    tomb:JSON.stringify(S.tomb||{}),
+    mo:JSON.stringify(S.mo||{}),
+    bi:String(S.bi!==undefined?S.bi:''),
+    bi_total:String(S.bi_total!==undefined?S.bi_total:'')
   };
 }
 
@@ -502,6 +534,9 @@ function loadEstado(cb){
         if(Array.isArray(data.EDGARS)&&data.EDGARS.length) S.EDGARS=filterTomb('EDGARS',mergeById(S.EDGARS,data.EDGARS));
         if(Array.isArray(data.SUGERENCIAS)&&data.SUGERENCIAS.length) S.SUGERENCIAS=filterTomb('SUGERENCIAS',mergeById(S.SUGERENCIAS,data.SUGERENCIAS));
         if(data.comments&&Object.keys(data.comments).length) S.comments=mergeComments(S.comments,data.comments);
+        if(data.mo&&Object.keys(data.mo).length){S.mo=data.mo;window.MO_SYNCED=true;}
+        if(data.bi!==undefined&&data.bi!==''&&!isNaN(parseFloat(data.bi))){S.bi=parseFloat(data.bi);S.ba=S.bi>0&&S.bi<50;window.BI_SYNCED=true;}
+        if(data.bi_total!==undefined&&data.bi_total!==''&&!isNaN(parseFloat(data.bi_total)))S.bi_total=parseFloat(data.bi_total);
         if(Array.isArray(data.cajComments)&&data.cajComments.length) S.cajComments=filterTomb('cajComments',mergeById(S.cajComments,data.cajComments));
         sv();
       } else if(data&&data.fecha&&data.fecha!==today()){
@@ -1439,6 +1474,7 @@ function setMon(id,d){
   var mn=MON.find(function(x){return x.id===id;});
   var cur=(id in S.mo)?S.mo[id]:mn.def;
   S.mo[id]=Math.max(0,cur+d);
+  LAST_LOCAL_CHANGE=Date.now();
   sv();rCash();
 }
 
@@ -1735,6 +1771,8 @@ function svTubosBi(){
   }
   try{localStorage.setItem(K+'mo',JSON.stringify(fullMo));}catch(e){}
   sv();
+  LAST_LOCAL_CHANGE=Date.now();
+  syncEstado();
   // Also send to Sheets for cross-device sync
   var em=document.getElementById('emp')?.value||'Sin nombre';
   var tr=document.getElementById('trn')?.value||'';
@@ -2401,7 +2439,7 @@ function initDates(){
   if(f)f.textContent=ftxt;if(b)b.textContent=bfch;
 }
 
-load();initDates();
+load();initDates();renderMarquee();
 document.getElementById('emp').value=S.em||'';
 document.getElementById('trn').value=S.tr||'mañana';
 // Load live estado from Sheets first, then render
@@ -2454,6 +2492,8 @@ fetch(SHEETS_URL)
       }
       if(last){
         // Recuperar estado de tubos — intentar JSON primero, luego texto
+        // (solo como respaldo: si el estado vivo ya lo trajo, no se toca)
+        if(window.MO_SYNCED){last={he:[],bi:0};}
         if(last.he && last.he.length){
           var recovered=false;
           // Try __mo__ JSON entry first (reliable)
@@ -2490,6 +2530,7 @@ fetch(SHEETS_URL)
         }
         // Fallback al campo bi directo
         if(!biVal)biVal=parseFloat(last.bi)||0;
+        if(window.BI_SYNCED)biVal=0;
         if(biVal>0){
           S.bi=biVal;
           S.ba=biVal<50;
