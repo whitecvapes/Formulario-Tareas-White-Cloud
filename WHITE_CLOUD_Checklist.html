@@ -382,56 +382,64 @@ function setSyncStatus(ok, msg){
   }
 }
 
+function syncFields(){
+  return {
+    action:'syncEstado',
+    fecha:today(),
+    ch:JSON.stringify(S.ch||{}),
+    che:JSON.stringify(S.che||{}),
+    wch:JSON.stringify(S.wch||{}),
+    wcom:JSON.stringify(S.wcom||{}),
+    wche:JSON.stringify(S.wche||{}),
+    dm:JSON.stringify(S.dm||[]),
+    rc:JSON.stringify((RC||[]).slice(0,40)),
+    cam_obs:S.cam_obs||'',
+    SATS:JSON.stringify((S.SATS||[]).slice(0,50)),
+    ENCARGOS:JSON.stringify((S.ENCARGOS||[]).slice(0,50)),
+    ENVIOS:JSON.stringify((S.ENVIOS||[]).slice(0,50)),
+    EDGARS:JSON.stringify((S.EDGARS||[]).slice(0,50)),
+    SUGERENCIAS:JSON.stringify((S.SUGERENCIAS||[]).slice(0,50)),
+    comments:JSON.stringify(S.comments||{}),
+    cajComments:JSON.stringify((S.cajComments||[]).slice(0,50)),
+    tomb:JSON.stringify(S.tomb||{})
+  };
+}
+
 function syncEstado(){
   try{
-    var payload={
-      action:'syncEstado',
-      fecha:today(),
-      ch:S.ch||{},
-      cam_obs:S.cam_obs||'',
-      che:S.che||{},
-      wch:S.wch||{},
-      wcom:S.wcom||{},
-      wche:S.wche||{},
-      dm:S.dm||[],
-      rc:RC||[],
-      SATS:S.SATS||[],
-      ENCARGOS:S.ENCARGOS||[],
-      ENVIOS:S.ENVIOS||[],
-      cajComments:S.cajComments||[],
-      comments:S.comments||{}
-    };
-    console.log('syncEstado firing, ch keys:', Object.keys(S.ch||{}).length);
-    var params='?action=syncEstado&fecha='+encodeURIComponent(today())+
-      '&ch='+encodeURIComponent(JSON.stringify(S.ch||{}))+
-      '&che='+encodeURIComponent(JSON.stringify(S.che||{}))+
-      '&wch='+encodeURIComponent(JSON.stringify(S.wch||{}))+
-      '&wcom='+encodeURIComponent(JSON.stringify(S.wcom||{}))+
-      '&wche='+encodeURIComponent(JSON.stringify(S.wche||{}))+
-      '&dm='+encodeURIComponent(JSON.stringify(S.dm||[]))+
-      '&rc='+encodeURIComponent(JSON.stringify((RC||[]).slice(0,40)))+
-      '&cam_obs='+encodeURIComponent(S.cam_obs||'');
-    // Trackers y comentarios también viajan a Sheets (con tope de tamaño de URL)
-    var extras=[
-      ['SATS',JSON.stringify((S.SATS||[]).slice(0,50))],
-      ['ENCARGOS',JSON.stringify((S.ENCARGOS||[]).slice(0,50))],
-      ['ENVIOS',JSON.stringify((S.ENVIOS||[]).slice(0,50))],
-      ['EDGARS',JSON.stringify((S.EDGARS||[]).slice(0,50))],
-      ['SUGERENCIAS',JSON.stringify((S.SUGERENCIAS||[]).slice(0,50))],
-      ['comments',JSON.stringify(S.comments||{})],
-      ['cajComments',JSON.stringify((S.cajComments||[]).slice(0,50))]
-    ];
-    var LIMIT=14000;
-    // si no cabe todo, se van soltando los menos críticos (cajComments, luego comments)
-    for(var drop=0;drop<=2;drop++){
+    var fields=syncFields();
+    // POST: el estado viaja en el cuerpo, sin el límite de tamaño de las URLs GET
+    var body=Object.keys(fields).map(function(k){return k+'='+encodeURIComponent(fields[k]);}).join('&');
+    fetch(SHEETS_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+      .then(function(r){
+        if(r&&r.ok===false)throw new Error('HTTP '+r.status);
+        console.log('syncEstado POST OK');
+        setSyncStatus(true);
+      })
+      .catch(function(e){
+        console.log('syncEstado POST falló, reintentando por GET', e);
+        syncEstadoGet(fields);
+      });
+  }catch(e){console.log('syncEstado ERROR',e);setSyncStatus(false);}
+}
+
+function syncEstadoGet(fields){
+  // Respaldo si el POST no llega: GET recortando lo menos crítico para caber en la URL (~8KB)
+  try{
+    var LIMIT=7500;
+    var base=['action','fecha','ch','che','wch','wcom','wche','dm','cam_obs','tomb'];
+    var extras=['rc','SATS','ENCARGOS','ENVIOS','EDGARS','SUGERENCIAS','comments','cajComments'];
+    var params='';
+    base.forEach(function(k){params+=(params?'&':'?')+k+'='+encodeURIComponent(fields[k]);});
+    for(var drop=0;drop<=extras.length;drop++){
       var lista=extras.slice(0,extras.length-drop);
-      var extraStr=lista.map(function(kv){return '&'+kv[0]+'='+encodeURIComponent(kv[1]);}).join('');
-      if((SHEETS_URL+params+extraStr).length<LIMIT||drop===2){params+=extraStr;break;}
+      var extraStr=lista.map(function(k){return '&'+k+'='+encodeURIComponent(fields[k]);}).join('');
+      if((SHEETS_URL+params+extraStr).length<LIMIT||drop===extras.length){params+=extraStr;break;}
     }
     fetch(SHEETS_URL+params)
-      .then(function(){console.log('syncEstado OK');setSyncStatus(true);})
+      .then(function(){console.log('syncEstado GET OK');setSyncStatus(true);})
       .catch(function(e){console.log('syncEstado FAIL',e);setSyncStatus(false);});
-  }catch(e){console.log('syncEstado ERROR',e);setSyncStatus(false);}
+  }catch(e){setSyncStatus(false);}
 }
 
 function loadEstado(cb){
@@ -471,9 +479,12 @@ function loadEstado(cb){
             else RC.unshift(r);
           });
           RC.sort(function(a,b){return (b.id||0)-(a.id||0);});
+          RC=filterTomb('RC',RC);
           if(RC.length>200)RC=RC.slice(0,200);
         }
         if(data.cam_obs!==undefined) S.cam_obs=data.cam_obs;
+        // Tombstones primero: lo borrado en cualquier dispositivo no debe resucitar
+        if(data.tomb) S.tomb=unionTombs(S.tomb,data.tomb);
         // Nunca sobrescribir datos locales con listas vacías del servidor:
         // se fusiona por id (lo del servidor manda en coincidencias, lo local nuevo se conserva)
         function mergeById(local,remote){
@@ -483,13 +494,13 @@ function loadEstado(cb){
           (local||[]).forEach(function(x){if(!(x&&x.id!==undefined&&ids[String(x.id)]))out.push(x);});
           return out;
         }
-        if(Array.isArray(data.SATS)&&data.SATS.length) S.SATS=mergeById(S.SATS,data.SATS);
-        if(Array.isArray(data.ENCARGOS)&&data.ENCARGOS.length) S.ENCARGOS=mergeById(S.ENCARGOS,data.ENCARGOS);
-        if(Array.isArray(data.ENVIOS)&&data.ENVIOS.length) S.ENVIOS=mergeById(S.ENVIOS,data.ENVIOS);
-        if(Array.isArray(data.EDGARS)&&data.EDGARS.length) S.EDGARS=mergeById(S.EDGARS,data.EDGARS);
-        if(Array.isArray(data.SUGERENCIAS)&&data.SUGERENCIAS.length) S.SUGERENCIAS=mergeById(S.SUGERENCIAS,data.SUGERENCIAS);
-        if(data.comments&&Object.keys(data.comments).length) S.comments=data.comments;
-        if(Array.isArray(data.cajComments)&&data.cajComments.length) S.cajComments=data.cajComments;
+        if(Array.isArray(data.SATS)&&data.SATS.length) S.SATS=filterTomb('SATS',mergeById(S.SATS,data.SATS));
+        if(Array.isArray(data.ENCARGOS)&&data.ENCARGOS.length) S.ENCARGOS=filterTomb('ENCARGOS',mergeById(S.ENCARGOS,data.ENCARGOS));
+        if(Array.isArray(data.ENVIOS)&&data.ENVIOS.length) S.ENVIOS=filterTomb('ENVIOS',mergeById(S.ENVIOS,data.ENVIOS));
+        if(Array.isArray(data.EDGARS)&&data.EDGARS.length) S.EDGARS=filterTomb('EDGARS',mergeById(S.EDGARS,data.EDGARS));
+        if(Array.isArray(data.SUGERENCIAS)&&data.SUGERENCIAS.length) S.SUGERENCIAS=filterTomb('SUGERENCIAS',mergeById(S.SUGERENCIAS,data.SUGERENCIAS));
+        if(data.comments&&Object.keys(data.comments).length) S.comments=mergeComments(S.comments,data.comments);
+        if(Array.isArray(data.cajComments)&&data.cajComments.length) S.cajComments=filterTomb('cajComments',mergeById(S.cajComments,data.cajComments));
         sv();
       } else if(data&&data.fecha&&data.fecha!==today()){
         // Different day in Sheets — ignore, keep local
@@ -523,12 +534,12 @@ function load(){
       autoGuardarSemana();
       S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,em:S.em||'',tr:S.tr||'mañana',wch:{},wcom:{},wche:{},semana:semActual,
         comments:cleanWeeklyComments(S.comments),semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
-        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[]};
+        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{}};
     } else {
       S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,em:S.em||'',tr:S.tr||'mañana',
         wch:S.wch||{},wcom:S.wcom||{},wche:S.wche||{},semana:S.semana||semActual,
         comments:S.comments||{},semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
-        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[]};
+        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{}};
     }
     sv();
   }
@@ -836,10 +847,15 @@ function delSemReg(idx){
   rSem();
 }
 
+function bumpComMeta(c,k){
+  if(!c._meta)c._meta={};
+  c._meta[k]=Date.now();
+}
+
 function cleanWeeklyComments(c){
   c=c||{};
   Object.keys(c).forEach(function(k){
-    if(k.indexOf('scom_')===0||k.indexOf('comp_')===0)delete c[k];
+    if(k.indexOf('scom_')===0||k.indexOf('comp_')===0){delete c[k];bumpComMeta(c,k);}
   });
   return c;
 }
@@ -847,9 +863,65 @@ function cleanWeeklyComments(c){
 function cleanDailyComments(c){
   c=c||{};
   Object.keys(c).forEach(function(k){
-    if(k.indexOf('csh_com_')===0)delete c[k];
+    if(k.indexOf('csh_com_')===0){delete c[k];bumpComMeta(c,k);}
   });
   return c;
+}
+
+function comEntryKey(c){
+  return (c&&c.id!==undefined)?String(c.id):((c&&c.fecha||'')+'|'+(c&&c.em||'')+'|'+(c&&c.texto||''));
+}
+
+// Fusión de comentarios entre lo local y lo del servidor:
+// por cada campo gana quien lo tocó más recientemente; a igualdad, se unen sin duplicar.
+function mergeComments(l,r){
+  l=l||{};r=r||{};
+  var ml=l._meta||{},mr=r._meta||{};
+  var out={},meta={},keys={};
+  Object.keys(l).concat(Object.keys(r)).forEach(function(k){if(k!=='_meta')keys[k]=1;});
+  Object.keys(ml).concat(Object.keys(mr)).forEach(function(k){keys[k]=1;});
+  Object.keys(keys).forEach(function(k){
+    var rl=ml[k]||0,rr=mr[k]||0;
+    var arr;
+    if(rl>rr)arr=l[k];
+    else if(rr>rl)arr=r[k];
+    else{
+      arr=(r[k]||[]).slice();
+      var seen={};arr.forEach(function(c){seen[comEntryKey(c)]=1;});
+      (l[k]||[]).forEach(function(c){if(!seen[comEntryKey(c)])arr.push(c);});
+    }
+    if(rl||rr)meta[k]=Math.max(rl,rr);
+    if(arr&&arr.length)out[k]=arr;
+  });
+  out._meta=meta;
+  return out;
+}
+
+// Tombstones: ids borrados que no deben resucitar al fusionar con otros dispositivos
+function addTomb(listKey,id){
+  if(id===undefined||id===null)return;
+  if(!S.tomb)S.tomb={};
+  if(!S.tomb[listKey])S.tomb[listKey]=[];
+  S.tomb[listKey].push(String(id));
+  if(S.tomb[listKey].length>100)S.tomb[listKey]=S.tomb[listKey].slice(-100);
+}
+function unionTombs(a,b){
+  a=a||{};b=b||{};
+  var out={};
+  Object.keys(a).concat(Object.keys(b)).forEach(function(k){
+    if(out[k])return;
+    var seen={},arr=[];
+    (a[k]||[]).concat(b[k]||[]).forEach(function(id){id=String(id);if(!seen[id]){seen[id]=1;arr.push(id);}});
+    if(arr.length>100)arr=arr.slice(-100);
+    out[k]=arr;
+  });
+  return out;
+}
+function filterTomb(listKey,arr){
+  var t=(S.tomb&&S.tomb[listKey])||[];
+  if(!t.length)return arr||[];
+  var dead={};t.forEach(function(id){dead[String(id)]=1;});
+  return (arr||[]).filter(function(x){return !(x&&x.id!==undefined&&dead[String(x.id)]);});
 }
 
 function refreshLogCache(cb){
@@ -1087,6 +1159,7 @@ function delTracker(prefix,idx){
   if(pin!==PINES['gerencia']&&pin!==PINES['Josep']&&pin!=='11661166'){alert('❌ PIN incorrecto.');return;}
   var key=prefix.toUpperCase()+'S';
   if(!S[key])return;
+  if(S[key][idx]&&S[key][idx].id!==undefined)addTomb(key,S[key][idx].id);
   S[key].splice(idx,1);
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
   rerenderTracker(prefix);
@@ -1111,7 +1184,8 @@ function saveComment(storeKey, inputId, renderFn){
   var now=new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   if(!S.comments)S.comments={};
   if(!S.comments[storeKey])S.comments[storeKey]=[];
-  S.comments[storeKey].push({fecha:now,em:em,texto:txt});
+  S.comments[storeKey].push({id:Date.now(),fecha:now,em:em,texto:txt});
+  bumpComMeta(S.comments,storeKey);
   document.getElementById(inputId).value='';
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
   if(renderFn)renderFn();
@@ -1121,6 +1195,7 @@ function delComment(storeKey, idx, renderFn){
   idx=parseInt(idx);
   if(!S.comments||!S.comments[storeKey])return;
   S.comments[storeKey].splice(idx,1);
+  bumpComMeta(S.comments,storeKey);
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
   if(renderFn)renderFn();
 }
@@ -1346,7 +1421,7 @@ function addCajComment(){
   var em=document.getElementById('emp')?.value||'Sin nombre';
   var now=new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   if(!S.cajComments)S.cajComments=[];
-  S.cajComments.push({fecha:now,em:em,texto:txt,subnotes:[]});
+  S.cajComments.push({id:Date.now(),fecha:now,em:em,texto:txt,subnotes:[]});
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rCash();
 }
 
@@ -1366,6 +1441,7 @@ function delCajComment(idx){
   if(pin===null)return;
   if(pin!==PINES['gerencia']&&pin!==PINES['Josep']&&pin!=='11661166'){alert('PIN incorrecto.');return;}
   if(!S.cajComments)return;
+  if(S.cajComments[idx]&&S.cajComments[idx].id!==undefined)addTomb('cajComments',S.cajComments[idx].id);
   S.cajComments.splice(idx,1);
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rCash();
 }
@@ -1602,6 +1678,7 @@ function dR(gi){
   var pin=prompt('🔐 Solo Josep puede borrar recepciones.\nIntroduce el PIN de Josep:');
   if(pin===null)return;
   if(pin!==PINES['gerencia']&&pin!==PINES['Josep']&&pin!=='11661166'){alert('❌ PIN incorrecto.');return;}
+  if(RC[gi]&&RC[gi].id!==undefined)addTomb('RC',RC[gi].id);
   RC.splice(gi,1);sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rRec();
 }
 
@@ -2274,7 +2351,7 @@ function resetDia(){
   S={date:today(),ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,em:em,tr:tr,
     wch:S.wch||{},wcom:S.wcom||{},wche:S.wche||{},semana:S.semana||weekKey(),
     comments:cleanDailyComments(S.comments||{}),semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
-    SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[]};
+    SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{}};
   OS={};
   // Log who pressed Nuevo día
   var logEm=em||'(desconocido)';
