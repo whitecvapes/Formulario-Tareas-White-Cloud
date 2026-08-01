@@ -450,11 +450,17 @@ function syncEstado(){
     fetch(SHEETS_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
       .then(function(r){
         if(r&&r.ok===false)throw new Error('HTTP '+r.status);
+        return r.text();
+      })
+      .then(function(txt){
+        // el script debe responder {"result":"ok"} — cualquier otra cosa (página de error,
+        // script antiguo sin soporte POST) dispara el respaldo por GET
+        if(String(txt).indexOf('"result"')===-1)throw new Error('el Apps Script no aceptó el POST (¿implementación sin actualizar?)');
         console.log('syncEstado POST OK');
         setSyncStatus(true);
       })
       .catch(function(e){
-        console.log('syncEstado POST falló, reintentando por GET', e);
+        console.log('syncEstado POST falló, reintentando por GET', e&&e.message);
         syncEstadoGet(fields);
       });
   }catch(e){console.log('syncEstado ERROR',e);setSyncStatus(false);}
@@ -521,7 +527,7 @@ function loadEstado(cb){
         }
         if(data.cam_obs!==undefined) S.cam_obs=data.cam_obs;
         // Tombstones primero: lo borrado en cualquier dispositivo no debe resucitar
-        if(data.tomb) S.tomb=unionTombs(S.tomb,data.tomb);
+        if(data.tomb&&typeof data.tomb==='object'&&!Array.isArray(data.tomb)) S.tomb=unionTombs(S.tomb,data.tomb);
         // Nunca sobrescribir datos locales con listas vacías del servidor:
         // se fusiona por id (lo del servidor manda en coincidencias, lo local nuevo se conserva)
         function mergeById(local,remote){
@@ -538,11 +544,11 @@ function loadEstado(cb){
         if(Array.isArray(data.ENVIOS)&&data.ENVIOS.length) S.ENVIOS=filterTomb('ENVIOS',mergeById(S.ENVIOS,data.ENVIOS));
         if(Array.isArray(data.EDGARS)&&data.EDGARS.length) S.EDGARS=filterTomb('EDGARS',mergeById(S.EDGARS,data.EDGARS));
         if(Array.isArray(data.SUGERENCIAS)&&data.SUGERENCIAS.length) S.SUGERENCIAS=filterTomb('SUGERENCIAS',mergeById(S.SUGERENCIAS,data.SUGERENCIAS));
-        if(data.comments&&Object.keys(data.comments).length) S.comments=mergeComments(S.comments,data.comments);
-        if(data.mo&&Object.keys(data.mo).length){S.mo=data.mo;window.MO_SYNCED=true;}
+        if(data.comments&&typeof data.comments==='object'&&!Array.isArray(data.comments)&&Object.keys(data.comments).length) S.comments=mergeComments(S.comments,data.comments);
+        if(data.mo&&typeof data.mo==='object'&&!Array.isArray(data.mo)&&Object.keys(data.mo).length){S.mo=data.mo;window.MO_SYNCED=true;}
         if(data.bi!==undefined&&data.bi!==''&&!isNaN(parseFloat(data.bi))){S.bi=parseFloat(data.bi);S.ba=S.bi>0&&S.bi<50;window.BI_SYNCED=true;}
         if(data.bi_total!==undefined&&data.bi_total!==''&&!isNaN(parseFloat(data.bi_total)))S.bi_total=parseFloat(data.bi_total);
-        if(data.bil&&Object.keys(data.bil).length)S.bil=data.bil;
+        if(data.bil&&typeof data.bil==='object'&&!Array.isArray(data.bil)&&Object.keys(data.bil).length)S.bil=data.bil;
         if(Array.isArray(data.cajComments)&&data.cajComments.length) S.cajComments=filterTomb('cajComments',mergeById(S.cajComments,data.cajComments));
         sv();
       } else if(data&&data.fecha&&data.fecha!==today()){
