@@ -261,6 +261,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 
 const PRV=['Vaperalia','Eciglogística','LYF Labs','Camarasa Moda','Llamative','Oil4Vap','Vapeo Distro','Mercadal','Distribución Mayorista','Glovap Spain SLU','Simply Green','Kunibu','Otro'];
+const BIL=[{id:'b5',l:'5€',v:5},{id:'b10',l:'10€',v:10},{id:'b20',l:'20€',v:20},{id:'b50',l:'50€',v:50}];
 const MON=[{id:'c001',l:'0,01€',def:4,warn:2,danger:1},{id:'c002',l:'0,02€',def:4,warn:2,danger:1},{id:'c005',l:'0,05€',def:4,warn:2,danger:1},{id:'c010',l:'0,10€',def:4,warn:2,danger:1},{id:'c020',l:'0,20€',def:4,warn:2,danger:1},{id:'c050',l:'0,50€',def:4,warn:2,danger:1},{id:'c100',l:'1,00€',def:4,warn:2,danger:1},{id:'c200',l:'2,00€',def:4,warn:2,danger:1}];
 
 const SD=[
@@ -433,7 +434,8 @@ function syncFields(){
     tomb:JSON.stringify(S.tomb||{}),
     mo:JSON.stringify(S.mo||{}),
     bi:String(S.bi!==undefined?S.bi:''),
-    bi_total:String(S.bi_total!==undefined?S.bi_total:'')
+    bi_total:String(S.bi_total!==undefined?S.bi_total:''),
+    bil:JSON.stringify(S.bil||{})
   };
 }
 
@@ -537,6 +539,7 @@ function loadEstado(cb){
         if(data.mo&&Object.keys(data.mo).length){S.mo=data.mo;window.MO_SYNCED=true;}
         if(data.bi!==undefined&&data.bi!==''&&!isNaN(parseFloat(data.bi))){S.bi=parseFloat(data.bi);S.ba=S.bi>0&&S.bi<50;window.BI_SYNCED=true;}
         if(data.bi_total!==undefined&&data.bi_total!==''&&!isNaN(parseFloat(data.bi_total)))S.bi_total=parseFloat(data.bi_total);
+        if(data.bil&&Object.keys(data.bil).length)S.bil=data.bil;
         if(Array.isArray(data.cajComments)&&data.cajComments.length) S.cajComments=filterTomb('cajComments',mergeById(S.cajComments,data.cajComments));
         sv();
       } else if(data&&data.fecha&&data.fecha!==today()){
@@ -569,11 +572,11 @@ function load(){
     const semActual=weekKey();
     if(isLunes && S.semana && S.semana!==semActual){
       autoGuardarSemana();
-      S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,em:S.em||'',tr:S.tr||'mañana',wch:{},wcom:{},wche:{},semana:semActual,
+      S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,bi_total:S.bi_total||0,bil:S.bil||{},em:S.em||'',tr:S.tr||'mañana',wch:{},wcom:{},wche:{},semana:semActual,
         comments:cleanWeeklyComments(S.comments),semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
         SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{}};
     } else {
-      S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,em:S.em||'',tr:S.tr||'mañana',
+      S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,bi_total:S.bi_total||0,bil:S.bil||{},em:S.em||'',tr:S.tr||'mañana',
         wch:S.wch||{},wcom:S.wcom||{},wche:S.wche||{},semana:S.semana||semActual,
         comments:S.comments||{},semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
         SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{}};
@@ -887,6 +890,19 @@ function delSemReg(idx){
   rSem();
 }
 
+function pinJosep(accion){
+  var pin=prompt('🔐 Solo Josep puede '+accion+'.\nIntroduce el PIN de Josep:');
+  if(pin===null)return false;
+  if(pin!==PINES['gerencia']&&pin!==PINES['Josep']&&pin!=='11661166'){alert('❌ PIN incorrecto.');return false;}
+  return true;
+}
+function editStamp(){
+  return new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function editMarkHtml(obj){
+  return (obj&&obj.editado)?'<div style="font-size:9px;color:#b45309;margin-top:1px">✏️ Editado por Josep · '+obj.editado+'</div>':'';
+}
+
 function bumpComMeta(c,k){
   if(!c._meta)c._meta={};
   c._meta[k]=Date.now();
@@ -1095,7 +1111,7 @@ function buildTrackerHtml(items, prefix, addFn, delFn, notaFn, title, placeholde
         '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text1)">'+
         (item.cliente?'👤 '+item.cliente+' — ':'')+item.desc+'</div>'+
         '<div style="font-size:10px;color:var(--text3);margin-top:1px">👤 '+startLabel+' <strong>'+(item.em||'Sin nombre')+'</strong> · '+item.fecha+'</div>'+
-        (item.telefono?'<div style="font-size:10px;color:var(--text3);margin-top:1px">📞 <strong>'+item.telefono+'</strong></div>':'')+
+        (item.telefono?'<div style="font-size:10px;color:var(--text3);margin-top:1px">📞 <a href="https://wa.me/'+waNum(item.telefono)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir chat de WhatsApp con el cliente" style="color:#16a34a;font-weight:700">'+item.telefono+' 💬</a></div>':'')+
         (item.prov?'<div style="font-size:10px;color:var(--text3);margin-top:1px">🏭 Proveedor: <strong>'+item.prov+'</strong></div>':'')+
         (item.pos||item.fecha_entrega?'<div style="font-size:10px;color:var(--text3);margin-top:1px">'+(item.pos?(prefix==='sat'?'🧾 Ticket compra: ':'🧾 POS/Ticket: ')+'<strong>'+item.pos+'</strong>':'')+(item.pos&&item.fecha_entrega?' · ':'')+(item.fecha_entrega?(prefix==='sat'?'📅 Compra: ':'📅 Fecha compromiso: ')+'<strong>'+item.fecha_entrega+'</strong>':'')+'</div>':'')+
         (item.pos_sat||item.fecha_sat?'<div style="font-size:10px;color:var(--text3);margin-top:1px">'+(item.pos_sat?'🔧 Ticket SAT: <strong>'+item.pos_sat+'</strong>':'')+(item.pos_sat&&item.fecha_sat?' · ':'')+(item.fecha_sat?'📅 SAT generado: <strong>'+item.fecha_sat+'</strong>':'')+'</div>':'')+
@@ -1112,7 +1128,18 @@ function buildTrackerHtml(items, prefix, addFn, delFn, notaFn, title, placeholde
             return '<div style="border-left:2px solid var(--accent-light);padding:.3rem .5rem;margin-top:.25rem;background:var(--bg1);border-radius:0 6px 6px 0;font-size:12px">'+
               '<div style="font-size:10px;color:var(--text3)">✍️ Añadido por <strong>'+(n.em||'Sin nombre')+'</strong> · '+n.fecha+'</div>'+
               '<div style="color:var(--text1);margin-top:1px">'+n.texto+'</div>'+
-              '<div style="display:flex;justify-content:flex-end;margin-top:.2rem">'+
+              editMarkHtml(n)+
+              (n.replies&&n.replies.length?n.replies.map(function(sr){
+                return '<div style="border-left:2px solid var(--border2);padding-left:.5rem;margin-top:.25rem;font-size:11px;color:var(--text2)">↳ <strong>'+(sr.em||'Sin nombre')+'</strong> · '+sr.fecha+': '+sr.texto+'</div>';
+              }).join(''):'')+
+              (prefix==='edgar'?
+                '<div style="display:flex;gap:.25rem;margin-top:.3rem">'+
+                '<input id="'+prefix+'_sub_emp_'+i+'_'+ni+'" type="text" placeholder="👤 Quién" value="'+empPre+'" style="width:80px;flex-shrink:0;font-size:10px;padding:2px 6px;border:1px solid var(--border2);border-radius:4px;background:var(--bg2);color:var(--text1);font-family:inherit">'+
+                '<input id="'+prefix+'_sub_'+i+'_'+ni+'" type="text" placeholder="↳ Responder a este comentario..." style="flex:1;font-size:10px;padding:2px 6px;border:1px solid var(--border2);border-radius:4px;background:var(--bg2);color:var(--text1);font-family:inherit">'+
+                '<button data-prefix="'+prefix+'" data-idx="'+i+'" data-nidx="'+ni+'" onclick="addTrackerSub(this.dataset.prefix,this.dataset.idx,this.dataset.nidx)" style="font-size:10px;padding:2px 7px;border:none;border-radius:4px;background:var(--accent);color:#fff;cursor:pointer">↳</button>'+
+                '</div>':'')+
+              '<div style="display:flex;justify-content:flex-end;gap:.25rem;margin-top:.2rem">'+
+              '<button data-prefix="'+prefix+'" data-idx="'+i+'" data-nidx="'+ni+'" onclick="editTrackerNota(this.dataset.prefix,this.dataset.idx,this.dataset.nidx)" style="font-size:10px;padding:1px 6px;border:none;border-radius:4px;background:var(--accent-bg);color:var(--accent);cursor:pointer">✏️</button>'+
               '<button data-prefix="'+prefix+'" data-idx="'+i+'" data-nidx="'+ni+'" onclick="delTrackerNota(this.dataset.prefix,this.dataset.idx,this.dataset.nidx)" style="font-size:10px;padding:1px 6px;border:none;border-radius:4px;background:var(--red-bg);color:var(--red);cursor:pointer">🗑</button>'+
               '</div>'+
               '</div>';
@@ -1225,6 +1252,34 @@ function delTracker(prefix,idx){
   rerenderTracker(prefix);
 }
 
+function addTrackerSub(prefix,idx,nidx){
+  idx=parseInt(idx);nidx=parseInt(nidx);
+  var txt=document.getElementById(prefix+'_sub_'+idx+'_'+nidx)?.value?.trim();
+  if(!txt)return;
+  var em=document.getElementById(prefix+'_sub_emp_'+idx+'_'+nidx)?.value?.trim()||document.getElementById('emp')?.value||'Sin nombre';
+  var key=prefix.toUpperCase()+'S';
+  if(!S[key]||!S[key][idx]||!S[key][idx].notas||!S[key][idx].notas[nidx])return;
+  var n=S[key][idx].notas[nidx];
+  if(!n.replies)n.replies=[];
+  n.replies.push({id:Date.now(),fecha:new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),em:em,texto:txt});
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
+  rerenderTracker(prefix);
+}
+
+function editTrackerNota(prefix,idx,nidx){
+  idx=parseInt(idx);nidx=parseInt(nidx);
+  var key=prefix.toUpperCase()+'S';
+  if(!S[key]||!S[key][idx]||!S[key][idx].notas||!S[key][idx].notas[nidx])return;
+  if(!pinJosep('editar notas'))return;
+  var n=S[key][idx].notas[nidx];
+  var nuevo=prompt('✏️ Editar nota:',n.texto);
+  if(nuevo===null||!nuevo.trim())return;
+  n.texto=nuevo.trim();
+  n.editado=editStamp();
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
+  rerenderTracker(prefix);
+}
+
 function delTrackerNota(prefix,idx,nidx){
   idx=parseInt(idx);nidx=parseInt(nidx);
   var pin=prompt('🔐 Solo Josep puede borrar notas de seguimiento.\nIntroduce el PIN de Josep:');
@@ -1251,6 +1306,20 @@ function saveComment(storeKey, inputId, renderFn){
   if(renderFn)renderFn();
 }
 
+function editComment(storeKey, idx, renderFn){
+  idx=parseInt(idx);
+  if(!S.comments||!S.comments[storeKey]||!S.comments[storeKey][idx])return;
+  if(!pinJosep('editar comentarios'))return;
+  var c=S.comments[storeKey][idx];
+  var nuevo=prompt('✏️ Editar comentario:',c.texto);
+  if(nuevo===null||!nuevo.trim())return;
+  c.texto=nuevo.trim();
+  c.editado=editStamp();
+  bumpComMeta(S.comments,storeKey);
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
+  if(renderFn)renderFn();
+}
+
 function delComment(storeKey, idx, renderFn){
   idx=parseInt(idx);
   if(!S.comments||!S.comments[storeKey])return;
@@ -1266,7 +1335,9 @@ function buildCommentBlock(storeKey, inputId, placeholder, renderFnName){
     return '<div style="background:var(--accent-bg);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:.3rem .5rem;margin-bottom:.2rem;font-size:12px">'+
       '<div style="font-size:10px;color:var(--text3)">'+c.fecha+' · '+c.em+'</div>'+
       '<div style="color:var(--text1);margin-top:1px">'+c.texto+'</div>'+
-      '<div style="display:flex;justify-content:flex-end;margin-top:.2rem">'+
+      editMarkHtml(c)+
+      '<div style="display:flex;justify-content:flex-end;gap:.25rem;margin-top:.2rem">'+
+      '<button data-key="'+storeKey+'" data-idx="'+i+'" data-fn="'+renderFnName+'" onclick="editComment(this.dataset.key,this.dataset.idx,window[this.dataset.fn])" style="font-size:10px;padding:1px 6px;border:none;border-radius:4px;background:var(--accent-bg);color:var(--accent);cursor:pointer">✏️</button>'+
       '<button data-key="'+storeKey+'" data-idx="'+i+'" data-fn="'+renderFnName+'" onclick="delComment(this.dataset.key,this.dataset.idx,window[this.dataset.fn])" style="font-size:10px;padding:1px 6px;border:none;border-radius:4px;background:var(--red-bg);color:var(--red);cursor:pointer">🗑 Borrar</button>'+
       '</div></div>';
   }).join('')+'</div>':'';
@@ -1293,6 +1364,13 @@ function rEncargos(){
       '🛒 Encargos y pedidos de clientes',
       'Nombre del cliente','Descripción del encargo / producto pedido',
       'Añadir actualización (llegó, avisado, recogido...)');
+}
+
+function waNum(t){
+  var d=String(t||'').replace(/\D/g,'');
+  if(d.indexOf('00')===0)d=d.slice(2);
+  if(d.length===9)d='34'+d; // números españoles sin prefijo
+  return d;
 }
 
 function printTracker(prefix,idx){
@@ -1469,6 +1547,19 @@ function rSem(){
     '<button class="bsave" onclick="gRegSemanal()">&#x1F4BE; Guardar registro semanal</button>'+renderSemReg();
 }
 
+function setBil(id,d){
+  if(!S.bil)S.bil={};
+  var cur=S.bil[id]||0;
+  S.bil[id]=Math.max(0,cur+d);
+  // el importe en billetes se recalcula automáticamente
+  var total=0;
+  BIL.forEach(function(b){total+=(S.bil[b.id]||0)*b.v;});
+  S.bi=total;
+  S.ba=total>0&&total<50;
+  LAST_LOCAL_CHANGE=Date.now();
+  sv();rCash();
+}
+
 function setMon(id,d){
   if(!S.mo)S.mo={};
   var mn=MON.find(function(x){return x.id===id;});
@@ -1496,6 +1587,18 @@ function addCajSub(idx){
   if(!S.cajComments)S.cajComments=[];
   if(!S.cajComments[idx].subnotes)S.cajComments[idx].subnotes=[];
   S.cajComments[idx].subnotes.push({fecha:now,em:em,texto:txt});
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rCash();
+}
+
+function editCajComment(idx){
+  idx=parseInt(idx);
+  if(!S.cajComments||!S.cajComments[idx])return;
+  if(!pinJosep('editar movimientos del cajón'))return;
+  var c=S.cajComments[idx];
+  var nuevo=prompt('✏️ Editar movimiento:',c.texto);
+  if(nuevo===null||!nuevo.trim())return;
+  c.texto=nuevo.trim();
+  c.editado=editStamp();
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rCash();
 }
 
@@ -1604,17 +1707,35 @@ function rCash(){
     return '<div style="background:var(--bg2);border-radius:8px;padding:.5rem .75rem;margin-top:.3rem;font-size:12px;position:relative">'+
       '<div style="color:var(--text3);font-size:10px;margin-bottom:.2rem">'+c.fecha+' · '+c.em+'</div>'+
       '<div style="color:var(--text1);margin-bottom:.3rem">'+c.texto+'</div>'+
+      editMarkHtml(c)+
       (c.subnotes&&c.subnotes.length?c.subnotes.map(function(sn){return '<div style="border-left:2px solid var(--border2);padding-left:.5rem;margin-top:.2rem;font-size:11px;color:var(--text2)">↳ '+sn.fecha+' '+sn.em+': '+sn.texto+'</div>';}).join(''):'')+
       '<div style="margin-top:.3rem;display:flex;gap:.3rem">'+
       '<input id="cajSub_'+i+'" type="text" placeholder="Añadir seguimiento..." style="flex:1;font-size:11px;padding:2px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
       '<button onclick="addCajSub('+i+')" style="font-size:11px;padding:2px 8px;border:none;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer">+ Añadir</button>'+
+      '<button onclick="editCajComment('+i+')" style="font-size:11px;padding:2px 6px;border:none;border-radius:6px;background:var(--accent-bg);color:var(--accent);cursor:pointer">✏️</button>'+
       '<button onclick="delCajComment('+i+')" style="font-size:11px;padding:2px 6px;border:none;border-radius:6px;background:var(--red-bg);color:var(--red);cursor:pointer">🗑</button>'+
       '</div>'+
       '</div>';
   }).join(''):'';
+  var bil=S.bil||{};
+  var bilTotal=0;BIL.forEach(function(b){bilTotal+=(bil[b.id]||0)*b.v;});
   h+='<div class="rf"><h3>&#x1F4BC; Cajón de caudales azul</h3>'+
-    '<div class="bill-row" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">'+
-    '<div class="rfl"><label style="font-size:11px">Nº billetes disponibles</label><input type="number" id="bim" min="0" step="1" placeholder="0" value="'+(S.bi||'')+'" style="font-size:16px;padding:6px 0;border:none;border-bottom:2px solid var(--border2);border-radius:0;background:none"></div>'+
+    '<p style="font-size:11px;color:var(--text3);margin-bottom:.4rem">Cantidad de billetes por denominación — el importe en billetes se calcula solo.</p>'+
+    '<div class="cg">'+
+    BIL.map(function(b){
+      var q=bil[b.id]||0;
+      return '<div class="moc">'+
+        '<label>'+b.l+'</label>'+
+        '<div class="mn">'+q+'</div>'+
+        '<div class="mbs">'+
+        '<button class="mb" onclick="setBil(\''+b.id+'\',-1)">&#8722;</button>'+
+        '<button class="mb" onclick="setBil(\''+b.id+'\',1)">&#43;</button>'+
+        '</div></div>';
+    }).join('')+
+    '</div>'+
+    (bilTotal?'<p style="font-size:11px;color:var(--text2);margin-top:.3rem">💶 Suma de billetes: <strong>'+bilTotal+'€</strong></p>':'')+
+    '<div class="bill-row" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.4rem">'+
+    '<div class="rfl"><label style="font-size:11px">💶 Importe en billetes (€)</label><input type="number" id="bim" min="0" step="0.01" placeholder="0.00" value="'+(S.bi||'')+'" style="font-size:16px;padding:6px 0;border:none;border-bottom:2px solid var(--border2);border-radius:0;background:none"></div>'+
     '<div class="rfl"><label style="font-size:11px">Importe total (€)</label><input type="number" id="bim_total" min="0" step="0.01" placeholder="0.00" value="'+(S.bi_total||'')+'" style="font-size:16px;padding:6px 0;border:none;border-bottom:2px solid var(--border2);border-radius:0;background:none"></div>'+
     '</div>'+
     '<p style="font-size:11px;color:var(--text3);margin-top:.25rem">Alerta automática si el importe es inferior a 50€.</p>'+
@@ -1680,6 +1801,10 @@ function rRec(){
           return '<div style="border-left:2px solid var(--accent-light);padding:.25rem .5rem;margin-top:.2rem;background:var(--bg1);border-radius:0 6px 6px 0;font-size:12px">'+
             '<div style="font-size:10px;color:var(--text3)">✍️ Añadido por <strong>'+(n.em||'Sin nombre')+'</strong> · '+n.fecha+'</div>'+
             '<div style="color:var(--text1);margin-top:1px">'+n.texto+'</div>'+
+            editMarkHtml(n)+
+            '<div style="display:flex;justify-content:flex-end;margin-top:.15rem">'+
+            '<button data-gi="'+gi+'" data-ni="'+ni+'" onclick="editRecNota(this.dataset.gi,this.dataset.ni)" style="font-size:10px;padding:1px 6px;border:none;border-radius:4px;background:var(--accent-bg);color:var(--accent);cursor:pointer">✏️</button>'+
+            '</div>'+
             '</div>';
         }).join('')+'</div>':'')+
       '<div style="display:flex;gap:.3rem;margin-top:.35rem">'+
@@ -1703,6 +1828,18 @@ function rRec(){
     (oldRecs.length?oldRecs.map(recCard).join(''):'<div style="font-size:12px;color:var(--text3);padding:.3rem 0">Sin recepciones anteriores</div>')+
     '</div>';
   document.getElementById('tab-recepciones').innerHTML=h;
+}
+
+function editRecNota(gi,ni){
+  gi=parseInt(gi);ni=parseInt(ni);
+  if(!RC[gi]||!RC[gi].notas||!RC[gi].notas[ni])return;
+  if(!pinJosep('editar comentarios de recepciones'))return;
+  var n=RC[gi].notas[ni];
+  var nuevo=prompt('✏️ Editar comentario:',n.texto);
+  if(nuevo===null||!nuevo.trim())return;
+  n.texto=nuevo.trim();
+  n.editado=editStamp();
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rRec();
 }
 
 function addRecNota(gi){
@@ -1937,7 +2074,8 @@ function gRegCash(){
   MON.forEach(function(mn){fullMo2[mn.id]=(mn.id in (S.mo||{}))?S.mo[mn.id]:mn.def;});
   var moJSON='__mo__:'+JSON.stringify(fullMo2);
   // Add cajon to he
-  var cshHe=[moJSON].concat(tubos).concat(cshDone);
+  var bilDet=BIL.filter(function(b){return (S.bil&&S.bil[b.id])||0;}).map(function(b){return b.l+'×'+S.bil[b.id];});
+  var cshHe=[moJSON].concat(tubos).concat(bilDet.length?['💶 Billetes: '+bilDet.join(' · ')]:[]).concat(cshDone);
   if(S.bi)cshHe.push('💼 Cajón azul: '+(S.bi||0)+'€'+(S.ba?' ⚠️ Por debajo del mínimo':''));
   var entryCash={id:Date.now(),tipo:'cashlogy',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
@@ -2239,6 +2377,7 @@ function rAyuda(){
       "<p>Cada empleado tiene un <strong>PIN personal de 4 dígitos</strong>. El PIN maestro de gerencia (Josep) funciona siempre, para todo.</p>"+
       "<p style=\"margin-top:.5rem\"><strong>Con tu PIN de empleado</strong> puedes ejecutar <strong>Nuevo día</strong> y <strong>Nueva semana</strong>. Ambos quedan registrados con nombre y hora.</p>"+
       "<p style=\"margin-top:.5rem\"><strong>Solo con el PIN de Josep</strong> se puede borrar: fichas y notas de SATs, Encargos y Envíos · recepciones (de hoy y del historial) · los registros guardados al final de Diarias, Semanales, Cashlogy y Desconexión (tanto 💾 como ☁️) · movimientos del cajón azul.</p>"+
+      "<p style=\"margin-top:.5rem\"><strong>✏️ Editar comentarios:</strong> Josep puede además editar cualquier comentario o nota (Semanales, Cashlogy, SATs, Encargos, Envíos, Edgar, Sugerencias, Recepciones y cajón) con su PIN. El comentario editado queda marcado con «✏️ Editado por Josep» y la fecha y hora de la edición.</p>"+
       "<p style=\"margin-top:.5rem\">Es decir: los empleados pueden <strong>añadir y marcar</strong> todo, pero <strong>nada se elimina</strong> sin pasar por Josep. Si algo se completa (un SAT entregado, un encargo recogido), deja una nota indicándolo y Josep limpiará la ficha al revisar.</p>"+
       "<p style=\"margin-top:.5rem\">Si no recuerdas tu PIN, contacta con gerencia.</p>"
     },
@@ -2251,7 +2390,7 @@ function rAyuda(){
     },
     {ic:"🔧",ti:"SATs — seguimiento de reparaciones",body:
       "<p>La pestaña SATs registra los dispositivos de clientes en reparación. No se borran con el reinicio de día ni de semana — solo Josep los elimina con su PIN cuando se entrega el dispositivo.</p>"+
-      "<p style=\"margin-top:.4rem\">Cada SAT incluye: cliente · <strong>📞 teléfono</strong> · descripción · <strong>👤 empleado/a que lo inicia</strong> (viene rellenado con tu nombre, cámbialo si procede) · <strong>🏭 proveedor con el que se gestiona</strong> (desplegable obligatorio; si eliges «Otro» aparece un recuadro para escribirlo) · <strong>🧾 POS/ticket y fecha de COMPRA</strong> del artículo · <strong>🔧 POS/ticket y fecha de generación del SAT</strong> (la fecha viene rellenada con hoy) · historial de notas.</p>"+
+      "<p style=\"margin-top:.4rem\">Cada SAT incluye: cliente · <strong>📞 teléfono</strong> (clicable — abre el chat de WhatsApp con el cliente) · descripción · <strong>👤 empleado/a que lo inicia</strong> (viene rellenado con tu nombre, cámbialo si procede) · <strong>🏭 proveedor con el que se gestiona</strong> (desplegable obligatorio; si eliges «Otro» aparece un recuadro para escribirlo) · <strong>🧾 POS/ticket y fecha de COMPRA</strong> del artículo · <strong>🔧 POS/ticket y fecha de generación del SAT</strong> (la fecha viene rellenada con hoy) · historial de notas.</p>"+
       "<p style=\"margin-top:.4rem\"><strong>🖨 Imprimir:</strong> cada ficha tiene un botón que genera un ticket de 80 mm con todos los datos y notas, listo para la impresora térmica. Se abre el diálogo de impresión — con la Unykach como impresora predeterminada, basta confirmar.</p>"+
       "<p style=\"margin-top:.4rem\">Para añadir seguimiento escribe la nota, indica quién la añade en el campo <strong>👤 Quién</strong> y pulsa <strong>💾 Guardar</strong>. Cada nota queda firmada: <em>✍️ Añadido por — fecha</em>.</p>"+
       "<p style=\"margin-top:.4rem\">Cuando el dispositivo se entregue, deja una nota (\"entregado\") — el borrado de la ficha lo hace Josep con su PIN.</p>"
@@ -2301,7 +2440,7 @@ function rAyuda(){
       "<p style=\"margin-top:.3rem\">Cada tarea tiene comentarios separados de <strong>☀️ mañana</strong> y <strong>🌆 tarde</strong> que se acumulan durante el día, entran en el registro de Cashlogy y se limpian al pulsar <strong>Nuevo día</strong>.</p>"+
       "<p style=\"margin-top:.6rem\"><strong>2. Control de tubos + Cajón azul</strong> — ⏱️ durante el turno, cada vez que cambie algo</p>"+
       "<p style=\"margin-top:.2rem\">Ajusta con +/− el número de tubos por denominación. 🟠 Naranja = stock bajo · 🔴 Rojo = urgente, avisar a gerencia.</p>"+
-      "<p style=\"margin-top:.2rem\">Introduce el importe de billetes disponibles en el cajón azul. La alerta de menos de 50€ salta automáticamente al pulsar guardar.</p>"+
+      "<p style=\"margin-top:.2rem\"><strong>💼 Cajón azul:</strong> cuenta los billetes con los contadores por denominación (5€ · 10€ · 20€ · 50€) — el importe en billetes se calcula solo (también puede escribirse a mano). Aparte se apunta el importe total del cajón. La alerta de menos de 50€ salta automáticamente al pulsar guardar. Todo se comparte entre dispositivos y se conserva al cambiar de día.</p>"+
       "<p style=\"margin-top:.2rem\">Pulsa <strong style=\"color:#0277bd\">💾 Guardar tubos + cajón azul</strong> — guarda y sincroniza el estado para que el siguiente turno y los demás dispositivos lo vean sin volver a introducirlo. No crea registro.</p>"+
       "<p style=\"margin-top:.6rem\"><strong>3. Registro completo</strong> — 🏁 al finalizar el turno</p>"+
       "<p style=\"margin-top:.2rem\">Pulsa <strong>💾 Guardar registro completo Cashlogy</strong> para dejar constancia con todo: checks de verificación, comentarios, estado de tubos y cajón azul. Recoge el importe del cajón escrito en pantalla aunque no hayas pulsado antes el botón 2.</p>"+
@@ -2315,7 +2454,7 @@ function rAyuda(){
     },
     {ic:"📌",ti:"Edgar — tareas pendientes",body:
       "<p>La pestaña 📌 Edgar recoge las tareas que se le solicitan: descripción de la tarea, quién la solicita y fecha automática.</p>"+
-      "<p style=\"margin-top:.4rem\">Cada solicitud admite <strong>comentarios firmados</strong> — para que Edgar anote avances o dudas y quien la pidió pueda concretar.</p>"+
+      "<p style=\"margin-top:.4rem\">Cada solicitud admite <strong>comentarios firmados</strong> — para que Edgar anote avances o dudas y quien la pidió pueda concretar — y cada comentario acepta <strong>↳ respuestas</strong> debajo, para mantener la conversación ordenada.</p>"+
       "<p style=\"margin-top:.4rem\">Cuando la tarea se complete, deja un comentario («hecho») — la ficha la borra Josep con su PIN al revisar. Se sincroniza entre dispositivos como el resto de pestañas.</p>"
     },
     {ic:"💡",ti:"Sugerencias — buzón del equipo",body:
@@ -2413,7 +2552,7 @@ function resetDia(){
   if(!confirm('¿Empezar nuevo día?\n\nSe borran los checks del turno.\nEl historial, recepciones y estado de tubos se mantienen.'))return;
   var em=document.getElementById('emp')?.value||'';
   var tr=document.getElementById('trn')?.value||'mañana';
-  S={date:today(),ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,em:em,tr:tr,
+  S={date:today(),ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,bi_total:S.bi_total||0,bil:S.bil||{},em:em,tr:tr,
     wch:S.wch||{},wcom:S.wcom||{},wche:S.wche||{},semana:S.semana||weekKey(),
     comments:cleanDailyComments(S.comments||{}),semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
     SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{}};
