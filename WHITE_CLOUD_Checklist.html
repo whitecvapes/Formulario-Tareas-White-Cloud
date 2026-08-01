@@ -379,7 +379,10 @@ const MARQUEE_ITEMS=[
   '📵 Móvil personal: en la caja del almacén durante todo el turno y registrado en la pestaña Desconexión — §20.3',
   '📸 Recepciones con incidencia: foto + aviso a gerencia · artículos faltantes con el nombre EXACTO de OSPOS',
   '🕐 SESAME: fichar entrada y salida es obligatorio — Art. 34.9 ET',
-  '🎵 Música: solo desde SoundToro con licencia — prohibido reproducir otra fuente — §24'
+  '🎵 Música: solo desde SoundToro con licencia — prohibido reproducir otra fuente — §24',
+  '📞 En SATs, Encargos y Envíos: pulsa el teléfono verde de la ficha para abrir el WhatsApp del cliente al momento',
+  '🖨 Cada ficha de SAT, encargo o envío tiene botón Imprimir — saca el ticket térmico con todos los datos y notas',
+  '✏️ ¿Error en un comentario? Solo Josep puede editarlo o borrarlo con su PIN — déjale nota si hay que corregir algo'
 ];
 function renderMarquee(){
   var el=document.getElementById('marquee-inner');
@@ -1989,6 +1992,10 @@ var LAST_LOCAL_CHANGE=0; // timestamp of last local check change
     '<span style="font-size:18px;flex-shrink:0">🕐</span>'+
     '<div><strong>Fichaje en SESAME</strong><br>Ficha tu <strong>entrada</strong> al iniciar el turno y tu <strong>salida</strong> al finalizar. Obligatorio — Art. 34.9 ET.</div>'+
     '</div>'+
+    '<div class="rm-item blue">'+
+    '<span style="font-size:18px;flex-shrink:0">💼</span>'+
+    '<div><strong>Cajón de caudales azul</strong><br>Cualquier uso del cajón → regístralo en Cashlogy (razón, quién, hora, cantidad). Mantén el recuento de billetes al día — si baja de 50€, avisa a gerencia.</div>'+
+    '</div>'+
     '<div class="rm-item orange">'+
     '<span style="font-size:18px;flex-shrink:0">💾</span>'+
     '<div><strong>Al finalizar tu turno</strong><br>Revisa que todas las tareas de tu turno estén completadas y pulsa <strong>Guardar todos los registros del turno</strong> antes de salir.</div>'+
@@ -2371,7 +2378,9 @@ function rAyuda(){
       "<p style=\"margin-top:.5rem\">Al empezar el turno escribe tu nombre en el campo <strong>Empleado/a</strong> y selecciona tu turno (mañana / tarde / completo). Tu nombre se usa para firmar checks, notas y comentarios.</p>"+
       "<p style=\"margin-top:.5rem\">Al terminar el turno pulsa <strong>💾 Guardar todos los registros del turno</strong> (botón morado superior) — guarda de una vez Diarias, Cashlogy, Semanales, Recepciones y Desconexión.</p>"+
       "<p style=\"margin-top:.5rem\">Pulsa <strong>Nuevo día</strong> solo si eres el último en salir o el primero en entrar — limpia los checks diarios para el siguiente turno. Requiere PIN y queda registrado quién lo pulsó y cuándo.</p>"+
-      "<p style=\"margin-top:.5rem\">Si no hay conexión a internet, la app sigue funcionando con los datos locales del dispositivo y se sincroniza cuando vuelva la conexión.</p>"+"<p style=\"margin-top:.5rem\"><strong>Código de colores en las secciones:</strong> 🔴 rojo = sin empezar · 🟡 amarillo = en progreso · 🟢 verde = completada. De un vistazo sabes qué queda pendiente sin abrirlas.</p>"
+      "<p style=\"margin-top:.5rem\">Si no hay conexión a internet, la app sigue funcionando con los datos locales del dispositivo y se sincroniza cuando vuelva la conexión.</p>"+
+      "<p style=\"margin-top:.5rem\"><strong>📢 Marquesina superior:</strong> la banda oscura en movimiento de arriba rota los avisos clave del protocolo (3 copias del SAT, cajón azul, móvil, SESAME...). Pasa el ratón por encima para pausarla y leer con calma. Gerencia puede cambiar los avisos.</p>"+
+      "<p style=\"margin-top:.5rem\"><strong>🔔 Recordatorio emergente:</strong> al abrir la app y cada 30 minutos aparece un aviso con lo imprescindible del turno (móvil, SESAME, cajón azul y guardar registros). Pulsa «✓ Entendido» para cerrarlo.</p>"+"<p style=\"margin-top:.5rem\"><strong>Código de colores en las secciones:</strong> 🔴 rojo = sin empezar · 🟡 amarillo = en progreso · 🟢 verde = completada. De un vistazo sabes qué queda pendiente sin abrirlas.</p>"
     },
     {ic:"🔐",ti:"PINs — qué puede hacer cada uno",body:
       "<p>Cada empleado tiene un <strong>PIN personal de 4 dígitos</strong>. El PIN maestro de gerencia (Josep) funciona siempre, para todo.</p>"+
@@ -2396,13 +2405,13 @@ function rAyuda(){
       "<p style=\"margin-top:.4rem\">Cuando el dispositivo se entregue, deja una nota (\"entregado\") — el borrado de la ficha lo hace Josep con su PIN.</p>"
     },
     {ic:"🛒",ti:"Encargos — pedidos de clientes",body:
-      "<p>La pestaña Encargos registra los pedidos realizados por clientes. Mismo funcionamiento que SATs: cliente y 📞 teléfono, quién lo inicia, proveedor con el que se gestiona (desplegable obligatorio, con opción «Otro» para escribirlo a mano), POS/ticket, fecha, notas firmadas y botón 🖨 Imprimir.</p>"+
+      "<p>La pestaña Encargos registra los pedidos realizados por clientes. Mismo funcionamiento que SATs: cliente y 📞 teléfono (clicable — abre el WhatsApp del cliente), quién lo inicia, proveedor con el que se gestiona (desplegable obligatorio, con opción «Otro» para escribirlo a mano), POS/ticket, fecha, notas firmadas y botón 🖨 Imprimir.</p>"+
       "<p style=\"margin-top:.4rem\">Úsalo para registrar cualquier producto pedido expresamente para un cliente y hacer seguimiento hasta su recogida (llegó, avisado, recogido...).</p>"+
       "<p style=\"margin-top:.4rem\">Solo Josep puede borrar la ficha o sus notas con su PIN — al recogerse, deja una nota indicándolo.</p>"
     },
     {ic:"🚚",ti:"Envíos — seguimiento de paquetes",body:
       "<p>La pestaña Envíos registra los envíos realizados a clientes. Mismo sistema que SATs y Encargos.</p>"+
-      "<p style=\"margin-top:.4rem\">Cada envío incluye: cliente · <strong>📞 teléfono</strong> · descripción · quién lo inicia · POS/ticket · fecha del ticket · <strong>📦 nº de envío/tracking</strong> y <strong>🚚 empresa transportista</strong> (estos dos campos solo existen aquí). Botón 🖨 Imprimir para sacar el ticket del envío.</p>"+
+      "<p style=\"margin-top:.4rem\">Cada envío incluye: cliente · <strong>📞 teléfono</strong> (clicable — abre el WhatsApp del cliente) · descripción · quién lo inicia · POS/ticket · fecha del ticket · <strong>📦 nº de envío/tracking</strong> y <strong>🚚 empresa transportista</strong> (estos dos campos solo existen aquí). Botón 🖨 Imprimir para sacar el ticket del envío.</p>"+
       "<p style=\"margin-top:.4rem\">Añade notas de seguimiento firmadas para registrar el estado (enviado, en camino, entregado, incidencia). La tarea diaria de seguimientos GLS/ViaXpress enlaza directamente a esta pestaña.</p>"+
       "<p style=\"margin-top:.4rem\">Solo Josep puede borrar el envío o sus notas con su PIN.</p>"
     },
