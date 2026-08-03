@@ -945,7 +945,7 @@ function loadEstado(cb){
         if(data.limp&&typeof data.limp==='object'&&!Array.isArray(data.limp)&&Object.keys(data.limp).length)S.limp=data.limp;
         if(Array.isArray(data.TURNOS)&&data.TURNOS.length)S.TURNOS=filterTomb('TURNOS',mergeById(S.TURNOS,data.TURNOS));
         if(Array.isArray(data.VACACIONES)&&data.VACACIONES.length)S.VACACIONES=filterTomb('VACACIONES',mergeById(S.VACACIONES,data.VACACIONES));
-        if(Array.isArray(data.empleados)&&data.empleados.length)S.empleados=data.empleados;
+        if(Array.isArray(data.empleados)&&data.empleados.length){S.empleados=data.empleados;vacRolloverCheck();}
         if(Array.isArray(data.VENTAS)&&data.VENTAS.length)S.VENTAS=filterTomb('VENTAS',mergeById(S.VENTAS,data.VENTAS));
         if(Array.isArray(data.logins)&&data.logins.length){
           S.logins=filterTomb('logins',mergeById(S.logins,data.logins)).sort(function(a,b){return regId(b)-regId(a);}).slice(0,100);
@@ -2033,25 +2033,29 @@ function rVacaciones(){
   var h='<div class="rf"><h3>🏖 Solicitudes de vacaciones</h3>'+
     '<p style="font-size:11px;color:var(--text3);margin-bottom:.5rem">📜 Cada empleado dispone de <strong>30 días naturales al año</strong>, en <strong>2 bloques de 15 días</strong> consecutivos (bloque 1 libre elección · bloque 2 lo asigna la empresa) · inicio en <strong>lunes laborable</strong> · mínimo <strong>2 meses de antelación</strong> · no pueden coincidir dos personas · <strong>los festivos no consumen vacaciones</strong>: si cae un festivo dentro del bloque, se suma un día más de vacaciones por cada festivo (la app prorroga la fecha fin automáticamente) · períodos bloqueados por la empresa: Navidad-Reyes, Fallas, Black Friday y Cyber Monday. Además, cada empleado tiene sus propias ventanas — abajo puedes verlas, con las <span style="color:#dc2626;font-weight:700">bloqueadas en rojo</span>.</p>';
 
-  // ── contador de días 2027 por empleado ──
+  // ── contador ANUAL de días por empleado (se reinicia cada 1 de enero; la deuda se arrastra) ──
+  var yearNow=new Date().getFullYear();
   h+='<div style="background:var(--bg2);border-radius:10px;padding:.5rem .75rem;margin-bottom:.5rem">'+
-    '<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:.25rem">📊 Días de vacaciones 2027 (30 por persona)</div>';
+    '<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:.25rem">📊 Días de vacaciones '+yearNow+' (30 por persona · el 1 de enero se reinician y la deuda se resta automáticamente)</div>';
   empList().forEach(function(e){
-    var apro=(S.VACACIONES||[]).filter(function(v){return v.empleado===e.n&&v.estado==='aprobado';});
+    var apro=(S.VACACIONES||[]).filter(function(v){return v.empleado===e.n&&v.estado==='aprobado'&&String(v.inicio).slice(0,4)==String(yearNow);});
+    var aproNext=(S.VACACIONES||[]).filter(function(v){return v.empleado===e.n&&v.estado==='aprobado'&&String(v.inicio).slice(0,4)==String(yearNow+1);});
     var pend=(S.VACACIONES||[]).filter(function(v){return v.empleado===e.n&&v.estado==='pendiente';}).length;
-    var dias=apro.reduce(function(a,v){
+    function diasDe(lista){return lista.reduce(function(a,v){
       var d=Math.round((new Date(v.fin+'T12:00:00')-new Date(v.inicio+'T12:00:00'))/(24*3600*1000))+1;
       return a+d-((v.festivos&&v.festivos.length)||0);
-    },0);
+    },0);}
+    var dias=diasDe(apro);
     var extra=apro.reduce(function(a,v){return a+((v.festivos&&v.festivos.length)||0);},0);
     var previos=parseInt(e.vacUsado)||0;
     var total=dias+previos;
-    var quedan=Math.max(0,30-total);
+    var quedan=30-total; // puede ser NEGATIVO — se muestra tal cual
     h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;font-size:11px;padding:.15rem 0;color:var(--text2)">'+
       '<div>👤 <strong>'+e.n+'</strong> — '+apro.length+'/2 bloques · <strong>'+total+'/30 días</strong>'+
-      (previos?' <span style="color:var(--text3)">('+dias+' en la app + '+previos+' ya consumidos)</span>':'')+
-      ' · <strong style="color:'+(quedan>0?'#16a34a':'#dc2626')+'">quedan '+quedan+'</strong>'+
+      (previos?' <span style="color:var(--text3)">('+dias+' en la app + '+previos+' previos/deuda)</span>':'')+
+      ' · <strong style="color:'+(quedan>0?'#16a34a':'#dc2626')+'">'+(quedan<0?'quedan '+quedan+' ⚠️ EXCEDIDO':'quedan '+quedan)+'</strong>'+
       (extra?' <span style="color:#16a34a">(+'+extra+' por festivos, no descuentan)</span>':'')+
+      (aproNext.length?' · <span style="color:var(--text3)">'+(yearNow+1)+': '+diasDe(aproNext)+' día(s) ya aprobados</span>':'')+
       (pend?' · ⏳ '+pend+' pendiente(s)':'')+'</div>'+
       (CUR_USER==='Josep'?'<button data-emp="'+e.n+'" onclick="editVacUsado(this.dataset.emp)" style="font-size:10px;padding:2px 8px;border:none;border-radius:6px;background:var(--accent-bg);color:var(--accent);cursor:pointer;flex-shrink:0">✏️ Ajustar</button>':'')+
       '</div>';
@@ -2155,6 +2159,38 @@ function addVacacion(){
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rVacaciones();
   alert('✓ Solicitud registrada. Pendiente de aprobación de Josep.');
 }
+function vacDiasAprobados(nombre,anyo){
+  return (S.VACACIONES||[]).filter(function(v){return v.empleado===nombre&&v.estado==='aprobado'&&String(v.inicio).slice(0,4)==String(anyo);})
+    .reduce(function(a,v){
+      var d=Math.round((new Date(v.fin+'T12:00:00')-new Date(v.inicio+'T12:00:00'))/(24*3600*1000))+1;
+      return a+d-((v.festivos&&v.festivos.length)||0);
+    },0);
+}
+function vacRolloverCheck(){
+  // Al entrar en un año nuevo: los 30 días se reinician; si alguien quedó en negativo,
+  // la deuda pasa como «días ya consumidos» del año nuevo.
+  var yearNow=new Date().getFullYear();
+  var lista=empList();
+  var cambio=false;
+  lista.forEach(function(e){
+    var y=parseInt(e.vacYear)||yearNow;
+    if(y<yearNow){
+      var consumidos=vacDiasAprobados(e.n,y)+(parseInt(e.vacUsado)||0);
+      var deuda=Math.max(0,consumidos-30);
+      e.vacUsado=deuda;
+      e.vacYear=yearNow;
+      cambio=true;
+    }else if(e.vacYear===undefined){
+      e.vacYear=yearNow;
+      cambio=true;
+    }
+  });
+  if(cambio){
+    S.empleados=lista;
+    sv();
+  }
+}
+
 function editVacUsado(nombre){
   if(CUR_USER!=='Josep'){alert('Solo Josep puede ajustar los días.');return;}
   if(!pinJosep('ajustar días de vacaciones'))return;
@@ -2165,8 +2201,9 @@ function editVacUsado(nombre){
   var v=prompt('✏️ Días de vacaciones YA CONSUMIDOS por '+nombre+' fuera de la app este año\n(se restan de sus 30 días):',String(actual));
   if(v===null)return;
   v=parseInt(v);
-  if(isNaN(v)||v<0||v>30){alert('❌ Debe ser un número entre 0 y 30.');return;}
+  if(isNaN(v)||v<0||v>45){alert('❌ Debe ser un número entre 0 y 45.');return;}
   e.vacUsado=v;
+  e.vacYear=new Date().getFullYear();
   S.empleados=lista;
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
   rVacaciones();
@@ -3692,7 +3729,8 @@ function rAyuda(){
       "<p style=\"margin-top:.4rem\"><strong>Al solicitar</strong>, la app comprueba automáticamente: que el inicio sea lunes laborable, la antelación mínima de 2 meses, que no coincida con las vacaciones de un compañero, que el bloque no pise los períodos bloqueados por la empresa (Navidad-Reyes, Fallas, Black Friday, Cyber Monday), y <strong>las ventanas propias de cada empleado</strong> según sus tablas del calendario: Lili solo los lunes tras su domingo de turno (semanas B) con sus 7 semanas bloqueadas, Laurita los suyos (semanas A) con sus 7, y Edgar cualquier lunes salvo sus 14 bloqueados — si el lunes elegido no es válido, la app avisa y sugiere los próximos inicios válidos. Si el bloque incluye festivos, <strong>se prorroga automáticamente</strong> tantos días como festivos (Art. 13 Convenio) y la fecha fin lo refleja.</p>"+
       "<p style=\"margin-top:.4rem\">Los avisos no bloquean la solicitud (queda constancia de ellos en la ficha), la firma el empleado con su PIN y la aprueba o rechaza Josep con el suyo — con el mismo check grande ✔/✖/… que en Turnos. Solo Josep puede borrar solicitudes.</p>"+
       "<p style=\"margin-top:.4rem\"><strong>👑 Asignación directa:</strong> cuando Josep inicia sesión, ve además un formulario exclusivo para <strong>asignar vacaciones con inicio y fin libres</strong> (pensado para el bloque 2, que asigna la empresa, o casos especiales). Quedan aprobadas directamente, marcadas como «ASIGNADAS por Josep», y cuentan en el contador de días igual que las demás.</p>"+
-      "<p style=\"margin-top:.4rem\"><strong>✏️ Ajuste de días consumidos:</strong> Josep puede indicar, por empleado, los días ya disfrutados fuera de la app este año — el contador los resta de los 30 y muestra siempre los días que quedan.</p>"
+      "<p style=\"margin-top:.4rem\"><strong>✏️ Ajuste de días consumidos:</strong> Josep puede indicar, por empleado, los días ya disfrutados fuera de la app este año — el contador los resta de los 30 y muestra siempre los días que quedan. Si alguien se pasa, el contador muestra el <strong>valor negativo en rojo</strong> (⚠️ EXCEDIDO).</p>"+
+      "<p style=\"margin-top:.4rem\"><strong>🔄 Reinicio anual:</strong> cada 1 de enero los 30 días se reinician automáticamente. Si un empleado terminó el año en negativo, esa deuda pasa al año nuevo como días ya consumidos (se restan solos). Los días no disfrutados no se acumulan al año siguiente.</p>"
     },
     {ic:"⭐",ti:"Ventas preferentes",body:
       "<p>Lista de productos que hay que <strong>ofrecer y vender de forma preferente</strong> (exceso de stock, caducidad próxima, mejor margen...). La gestiona Josep con su PIN: producto, prioridad (⭐ preferente / 🔥 alta) y motivo.</p>"+
@@ -3823,7 +3861,7 @@ function initDates(){
   if(f)f.textContent=ftxt;if(b)b.textContent=bfch;
 }
 
-load();initDates();renderMarquee();
+load();initDates();vacRolloverCheck();renderMarquee();
 // ── Sesión: restaurar u obligar a identificarse ──
 (function(){
   var saved=null;
