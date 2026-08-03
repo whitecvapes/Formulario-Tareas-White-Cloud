@@ -2031,7 +2031,46 @@ function avisosVac(inicio,empleado){
 function rVacaciones(){
   var vs=S.VACACIONES||[];
   var h='<div class="rf"><h3>🏖 Solicitudes de vacaciones</h3>'+
-    '<p style="font-size:11px;color:var(--text3);margin-bottom:.5rem">📜 Según el Calendario 2027: 30 días naturales en <strong>2 bloques de 15 días</strong> consecutivos (bloque 1 libre elección · bloque 2 lo asigna la empresa) · inicio en <strong>lunes laborable</strong> · mínimo <strong>2 meses de antelación</strong> · no pueden coincidir dos personas · si el bloque incluye festivos, se prorroga tantos días (la app lo calcula solo) · períodos bloqueados: Navidad-Reyes, Fallas, Black Friday y Cyber Monday. Además, <strong>cada empleado tiene sus propias ventanas</strong>: Lili y Laurita solo pueden empezar el lunes siguiente a su domingo de turno (y tienen semanas bloqueadas propias), y Edgar cualquier lunes salvo sus 14 bloqueados — la app lo comprueba todo al solicitar.</p>';
+    '<p style="font-size:11px;color:var(--text3);margin-bottom:.5rem">📜 Cada empleado dispone de <strong>30 días naturales al año</strong>, en <strong>2 bloques de 15 días</strong> consecutivos (bloque 1 libre elección · bloque 2 lo asigna la empresa) · inicio en <strong>lunes laborable</strong> · mínimo <strong>2 meses de antelación</strong> · no pueden coincidir dos personas · <strong>los festivos no consumen vacaciones</strong>: si cae un festivo dentro del bloque, se suma un día más de vacaciones por cada festivo (la app prorroga la fecha fin automáticamente) · períodos bloqueados por la empresa: Navidad-Reyes, Fallas, Black Friday y Cyber Monday. Además, cada empleado tiene sus propias ventanas — abajo puedes verlas, con las <span style="color:#dc2626;font-weight:700">bloqueadas en rojo</span>.</p>';
+
+  // ── contador de días 2027 por empleado ──
+  h+='<div style="background:var(--bg2);border-radius:10px;padding:.5rem .75rem;margin-bottom:.5rem">'+
+    '<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:.25rem">📊 Días de vacaciones 2027 (30 por persona)</div>';
+  empList().forEach(function(e){
+    var apro=(S.VACACIONES||[]).filter(function(v){return v.empleado===e.n&&v.estado==='aprobado';});
+    var pend=(S.VACACIONES||[]).filter(function(v){return v.empleado===e.n&&v.estado==='pendiente';}).length;
+    var dias=apro.length*15;
+    var extra=apro.reduce(function(a,v){return a+((v.festivos&&v.festivos.length)||0);},0);
+    h+='<div style="font-size:11px;padding:.15rem 0;color:var(--text2)">👤 <strong>'+e.n+'</strong> — '+apro.length+'/2 bloques aprobados · <strong>'+dias+'/30 días</strong>'+
+      (extra?' <span style="color:#16a34a">(+'+extra+' día(s) extra por festivos, no descuentan)</span>':'')+
+      (pend?' · ⏳ '+pend+' pendiente(s)':'')+'</div>';
+  });
+  h+='</div>';
+
+  // ── ventanas por empleado, con las bloqueadas EN ROJO ──
+  h+='<div style="background:var(--bg2);border-radius:10px;padding:.5rem .75rem;margin-bottom:.5rem">'+
+    '<div onclick="VAC_VENT_OPEN=!VAC_VENT_OPEN;rVacaciones()" style="font-size:12px;font-weight:700;color:var(--text2);cursor:pointer">'+(window.VAC_VENT_OPEN?'▼':'▶')+' 📅 Ventanas de inicio 2027 por empleado <span style="font-weight:400;color:#dc2626">(en rojo = bloqueadas)</span></div>';
+  if(window.VAC_VENT_OPEN){
+    function chip(f,bloq){
+      return '<span title="'+(bloq?'BLOQUEADA':'disponible')+'" style="display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;margin:2px;border-radius:8px;'+(bloq?'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5':'background:#dcfce7;color:#166534')+'">'+fechaES(f).slice(0,5)+(bloq?' ✖':'')+'</span>';
+    }
+    empList().forEach(function(e){
+      var ve=VAC_EMPLEADO[e.vac||e.n];
+      h+='<div style="margin-top:.45rem;font-size:11px;font-weight:700;color:var(--text1)">👤 '+e.n+'</div>';
+      if(!ve){
+        h+='<div style="font-size:10px;color:var(--text3)">Sin tabla propia — puede iniciar cualquier lunes laborable no bloqueado por la empresa.</div>';
+        return;
+      }
+      if(ve.iniciosValidos){
+        h+='<div style="font-size:10px;color:var(--text3);margin-bottom:2px">'+ve.regla+'. Sus lunes de inicio ('+ve.iniciosValidos.length+'):</div><div>'+
+          ve.iniciosValidos.map(function(f){return chip(f,ve.bloqueados.indexOf(f)>-1);}).join('')+'</div>';
+      }else{
+        h+='<div style="font-size:10px;color:var(--text3);margin-bottom:2px">'+ve.regla+'. Sus lunes BLOQUEADOS ('+ve.bloqueados.length+'):</div><div>'+
+          ve.bloqueados.map(function(f){return chip(f,true);}).join('')+'</div>';
+      }
+    });
+  }
+  h+='</div>';
   h+=vs.length?vs.map(function(v,i){
     return '<div style="background:var(--bg2);border-radius:10px;padding:.6rem .75rem;margin-bottom:.5rem;border-left:3px solid '+(v.estado==='aprobado'?'#16a34a':v.estado==='rechazado'?'#dc2626':'var(--accent)')+'">'+
       '<div style="display:flex;justify-content:space-between;gap:.4rem;align-items:flex-start">'+
@@ -2040,7 +2079,7 @@ function rVacaciones(){
         (v.estado==='aprobado'?'✔':v.estado==='rechazado'?'✖':'…')+'</div>'+
       '<div style="flex:1">'+
       '<div style="font-size:13px;font-weight:700;color:var(--text1)">🏖 '+v.empleado+' — Bloque '+v.bloque+': '+fechaES(v.inicio)+' → '+fechaES(v.fin)+'</div>'+
-      '<div style="font-size:10px;color:var(--text3);margin-top:2px">Solicitado el '+v.fecha+(v.festivos&&v.festivos.length?' · prorrogado +'+v.festivos.length+' día(s) por festivo(s)':'')+'</div>'+
+      '<div style="font-size:10px;color:var(--text3);margin-top:2px">Solicitado el '+v.fecha+(v.festivos&&v.festivos.length?' · <span style="color:#16a34a;font-weight:700">+'+v.festivos.length+' día(s) sumado(s) por festivo(s): '+v.festivos.map(fechaES).join(', ')+'</span>':'')+'</div>'+
       (v.avisos&&v.avisos.length?'<div style="font-size:10px;color:#b45309;margin-top:2px">⚠️ '+v.avisos.join(' · ')+'</div>':'')+
       (v.motivo?'<div style="font-size:11px;color:var(--text2);margin-top:2px">📝 '+v.motivo+'</div>':'')+
       '<div style="margin-top:.3rem;font-size:10px;font-weight:700">'+(v.estado==='aprobado'?'<span style="color:#16a34a">✅ Aprobado por Josep · '+(v.resuelto||'')+'</span>':v.estado==='rechazado'?'<span style="color:#dc2626">❌ Rechazado por Josep · '+(v.resuelto||'')+'</span>':'<span style="color:#b45309">⏳ Pendiente de aprobación de Josep</span>')+'</div>'+
@@ -2329,6 +2368,7 @@ function empAnadir(){
 }
 
 var LOGINS_OPEN={};
+var VAC_VENT_OPEN=false;
 function tglLoginsDia(d){LOGINS_OPEN[d]=!LOGINS_OPEN[d];rJosep();}
 function delLoginsDia(d){
   if(!confirm('¿Borrar los inicios de sesión del '+d+'?'))return;
@@ -3573,7 +3613,8 @@ function rAyuda(){
       "<p style=\"margin-top:.4rem\">Cada solicitud lleva a la izquierda un <strong>check grande</strong>: ✔ verde = aprobada · ✖ rojo = rechazada · … ámbar = pendiente.</p>"
     },
     {ic:"🏖",ti:"Vacaciones — solicitudes 2027",body:
-      "<p>Digitaliza el Calendario de Vacaciones 2027: cada empleado disfruta 30 días naturales en <strong>2 bloques de 15 días consecutivos</strong> (bloque 1 de libre elección, bloque 2 asignado por la empresa).</p>"+
+      "<p>Digitaliza el Calendario de Vacaciones 2027: cada empleado dispone de <strong>30 días naturales al año</strong>, en <strong>2 bloques de 15 días consecutivos</strong> (bloque 1 de libre elección, bloque 2 asignado por la empresa). La pestaña muestra un contador por empleado (bloques aprobados y días sobre 30) y el desplegable <strong>«📅 Ventanas de inicio por empleado»</strong>, con los lunes disponibles en verde y los <strong>bloqueados en rojo</strong>.</p>"+
+      "<p style=\"margin-top:.4rem\"><strong>Los festivos no consumen vacaciones:</strong> si un festivo cae dentro del bloque, se suma un día más por cada festivo — la fecha fin se prorroga automáticamente y la ficha muestra qué festivos sumaron días.</p>"+
       "<p style=\"margin-top:.4rem\"><strong>Al solicitar</strong>, la app comprueba automáticamente: que el inicio sea lunes laborable, la antelación mínima de 2 meses, que no coincida con las vacaciones de un compañero, que el bloque no pise los períodos bloqueados por la empresa (Navidad-Reyes, Fallas, Black Friday, Cyber Monday), y <strong>las ventanas propias de cada empleado</strong> según sus tablas del calendario: Lili solo los lunes tras su domingo de turno (semanas B) con sus 7 semanas bloqueadas, Laurita los suyos (semanas A) con sus 7, y Edgar cualquier lunes salvo sus 14 bloqueados — si el lunes elegido no es válido, la app avisa y sugiere los próximos inicios válidos. Si el bloque incluye festivos, <strong>se prorroga automáticamente</strong> tantos días como festivos (Art. 13 Convenio) y la fecha fin lo refleja.</p>"+
       "<p style=\"margin-top:.4rem\">Los avisos no bloquean la solicitud (queda constancia de ellos en la ficha), la firma el empleado con su PIN y la aprueba o rechaza Josep con el suyo — con el mismo check grande ✔/✖/… que en Turnos. Solo Josep puede borrar solicitudes.</p>"
     },
