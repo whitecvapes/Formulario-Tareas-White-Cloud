@@ -233,12 +233,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <button class="tab" onclick="go('semanales',this)">&#x1F4C5; Semanales</button>
   <button class="tab" onclick="go('cashlogy',this)">&#x1F4B0; Cashlogy</button>
   <button class="tab" onclick="go('desconexion',this)">&#x1F4F5; Desconexion</button>
-  <button class="tab" onclick="go('registro',this)">&#x1F4CB; Registro</button>
+  <button class="tab" onclick="go('limpieza',this)">&#x1F9F9; Limpieza</button>
   <div style="width:100%;height:2px"></div>
+  <button class="tab" onclick="go('turnos',this)">&#x1F501; Turnos</button>
+  <button class="tab" onclick="go('vacaciones',this)">&#x1F3D6; Vacaciones</button>
   <button class="tab" onclick="go('edgar',this)">&#x1F4CC; Edgar</button>
   <button class="tab" onclick="go('sugerencias',this)">&#x1F4A1; Sugerencias</button>
-  <button class="tab" onclick="go('turnos',this)">&#x1F501; Turnos</button>
-  <button class="tab" onclick="go('limpieza',this)">&#x1F9F9; Limpieza</button>
+  <div style="width:100%;height:2px"></div>
+  <button class="tab" onclick="go('registro',this)">&#x1F4CB; Registro</button>
   <button class="tab" id="tab-btn-josep" style="display:none" onclick="go('josep',this)">&#x1F451; Josep</button>
   <button class="tab" onclick="go('ayuda',this)">&#x2753; Ayuda</button>
 </div>
@@ -254,6 +256,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="tab-edgar" style="display:none"></div>
 <div id="tab-sugerencias" style="display:none"></div>
 <div id="tab-turnos" style="display:none"></div>
+<div id="tab-vacaciones" style="display:none"></div>
 <div id="tab-limpieza" style="display:none"></div>
 <div id="tab-josep" style="display:none"></div>
 <div id="tab-registro" style="display:none">
@@ -397,7 +400,23 @@ const EMPLEADOS=['Lili','Laurita','Edgar','Pepe','Josep'];
 
 // ── FESTIVOS ── añade o quita fechas (formato AAAA-MM-DD); esos días la alarma
 // de WhatsApp usa el horario de domingo (12:00-15:00 y 16:00-21:00)
-const FESTIVOS=['2026-08-15','2026-10-09','2026-10-12','2026-12-06','2026-12-08','2026-12-25','2027-01-01','2027-01-06'];
+const FESTIVOS=[
+  // 2026 (restantes)
+  '2026-08-15','2026-10-09','2026-10-12','2026-12-06','2026-12-08','2026-12-25',
+  // 2027 — festivos laborales Valencia capital (14, según Calendario de Vacaciones 2027)
+  '2027-01-01','2027-01-06','2027-01-22','2027-03-19','2027-03-26','2027-03-29',
+  '2027-04-05','2027-05-01','2027-10-09','2027-10-12','2027-11-01','2027-12-06',
+  '2027-12-08','2027-12-25'
+];
+
+// Períodos bloqueados por la empresa para vacaciones (Protocolo 3.1.1)
+const VAC_BLOQUEOS=[
+  {desde:'2026-12-23',hasta:'2027-01-08',motivo:'Navidad y Reyes (arrastre 2026)'},
+  {desde:'2027-03-12',hasta:'2027-03-19',motivo:'Fallas'},
+  {desde:'2027-11-26',hasta:'2027-11-28',motivo:'Black Friday'},
+  {desde:'2027-11-29',hasta:'2027-11-29',motivo:'Cyber Monday'},
+  {desde:'2027-12-23',hasta:'2028-01-08',motivo:'Navidad y Reyes'}
+];
 
 // ── STOCK DE LIMPIEZA ── artículo, unidad y stock mínimo (editable)
 const LIMPIEZA=[
@@ -414,7 +433,8 @@ const LIMPIEZA=[
 
 var CUR_USER=null;
 
-// ── ALARMA HORARIA: revisar WhatsApp y redes sociales ──
+// ── ALARMA PERIÓDICA (cada 30 min): revisar WhatsApp y redes sociales ──
+// El contador se guarda en localStorage: recargar la página NO lo reinicia.
 // Horario activo: L-V 10:00-21:00 · Sáb 10:30-21:00 · Dom y festivos 12:00-15:00 y 16:00-21:00
 function waAlarmaActiva(){
   var now=new Date();
@@ -435,7 +455,7 @@ function checkWaAlarm(){
   var last=0;
   try{last=parseInt(localStorage.getItem(K+'wa')||'0')||0;}catch(e){}
   if(!last){setWaChecked();return;} // primera vez del día/dispositivo: arranca el contador
-  if(Date.now()-last<60*60*1000)return;
+  if(Date.now()-last<30*60*1000)return;
   showWaAlarm();
 }
 function setWaChecked(){
@@ -450,7 +470,7 @@ function showWaAlarm(){
     '<div style="font-size:16px;font-weight:800;color:#111;margin-top:.3rem">Revisión horaria</div>'+
     '<div style="font-size:14px;color:#333;margin:.6rem 0;line-height:1.5">Revisa <strong>WhatsApp</strong> y las <strong>redes sociales</strong> (Instagram, Facebook, Google Business): que no quede ningún mensaje de cliente sin responder.</div>'+
     '<button onclick="waRevisado()" style="width:100%;padding:.7rem;border:none;border-radius:10px;background:#dc2626;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">✓ Revisado — parar alarma</button>'+
-    '<div style="font-size:10px;color:#999;margin-top:.4rem">La alarma sonará hasta que pulses el botón. Próximo aviso en 60 minutos.</div>'+
+    '<div style="font-size:10px;color:#999;margin-top:.4rem">La alarma sonará hasta que pulses el botón. Próximo aviso en 30 minutos.</div>'+
     '</div>';
   document.body.appendChild(ov);
   startAlarm();
@@ -462,6 +482,46 @@ function waRevisado(){
   if(ov)ov.remove();
 }
 setInterval(checkWaAlarm,30000);
+
+// ── ALARMA DE PRE-CIERRE (20:30, una vez al día) ──
+function checkPreCierre(){
+  if(document.getElementById('pc-overlay'))return;
+  if(document.getElementById('login-overlay'))return;
+  var now=new Date();
+  var hm=now.getHours()*60+now.getMinutes();
+  if(hm<1230||hm>=1290)return; // ventana 20:30–21:30
+  var hoy=now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2)+'-'+('0'+now.getDate()).slice(-2);
+  var last='';
+  try{last=localStorage.getItem(K+'pc')||'';}catch(e){}
+  if(last===hoy)return;
+  showPreCierre(hoy);
+}
+function showPreCierre(hoy){
+  var ov=document.createElement('div');
+  ov.id='pc-overlay';
+  ov.dataset.hoy=hoy;
+  ov.style.cssText='position:fixed;inset:0;background:rgba(120,53,15,.94);z-index:9600;display:flex;align-items:center;justify-content:center;padding:1rem';
+  ov.innerHTML='<div style="background:#fff;border-radius:16px;padding:1.5rem;max-width:400px;width:100%;text-align:center;border-top:6px solid #b45309">'+
+    '<div style="font-size:40px">🌆</div>'+
+    '<div style="font-size:16px;font-weight:800;color:#111;margin-top:.3rem">20:30 — Tareas de PRE-CIERRE</div>'+
+    '<div style="font-size:14px;color:#333;margin:.6rem 0;line-height:1.5">Es hora de empezar la <strong>Reposición pre-cierre</strong> y preparar el cierre: revisa la sección de la pestaña Diarias y ve marcando cada tarea.</div>'+
+    '<button onclick="preCierreOK()" style="width:100%;padding:.7rem;border:none;border-radius:10px;background:#b45309;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">✓ Entendido — empezamos el pre-cierre</button>'+
+    '<div style="font-size:10px;color:#999;margin-top:.4rem">La alarma sonará hasta que pulses el botón. Este aviso sale una vez al día.</div>'+
+    '</div>';
+  document.body.appendChild(ov);
+  startAlarm();
+}
+function preCierreOK(){
+  stopAlarm();
+  var ov=document.getElementById('pc-overlay');
+  if(ov){
+    try{localStorage.setItem(K+'pc',ov.dataset.hoy||'');}catch(e){}
+    ov.remove();
+  }
+  // llevar directamente a Diarias, donde está la sección de pre-cierre
+  go('diarias',document.querySelector('.tab[onclick*=diarias]'));
+}
+setInterval(checkPreCierre,30000);
 
 // ── SONIDO DE ALARMA (pitido hasta que se pulsa el botón) ──
 var AC=null,ALARM_TIMER=null;
@@ -544,17 +604,48 @@ function applyUserUI(){
   var lo=document.getElementById('logout-link');
   if(lo){lo.style.display='';lo.textContent='👤 '+CUR_USER+' · Cerrar sesión';}
 }
+function avisoRetiradoPara(emp){
+  var a=S.aviso;
+  return !!(a&&a.retirados&&a.retirados[emp]&&a.retirados[emp].on);
+}
 function afterLogin(){
   if(CUR_USER==='Josep'){showJosepResumen();return;}
-  // comunicado pendiente de ver → ventana emergente CON alarma
+  // el comunicado aparece en CADA inicio de sesión hasta que Josep lo retire
+  // para ese empleado (la alarma solo suena si aún no lo había confirmado)
   var a=S.aviso;
-  if(a&&a.texto&&(!a.vistos||!a.vistos[CUR_USER])){
+  if(a&&a.texto&&!avisoRetiradoPara(CUR_USER)){
     showAvisoModal(a);
+  }else if(CUR_USER==='Edgar'){
+    showEdgarPopup();
   }
+}
+
+// ── 📌 POPUP DE TAREAS PENDIENTES DE EDGAR (solo para Edgar) ──
+function showEdgarPopup(){
+  var tareas=S.EDGARS||[];
+  if(!tareas.length)return;
+  if(document.getElementById('edgar-overlay'))return;
+  var lista=tareas.slice(0,8).map(function(t){
+    return '<div style="border-left:3px solid #4f46e5;padding:.35rem .5rem;margin-top:.35rem;background:#f8fafc;border-radius:0 8px 8px 0">'+
+      '<div style="font-size:13px;font-weight:600;color:#111">'+t.desc+'</div>'+
+      '<div style="font-size:10px;color:#777">Solicitado por '+(t.em||'—')+' · '+t.fecha+(t.notas&&t.notas.length?' · 💬 '+t.notas.length+' comentario(s)':'')+'</div>'+
+      '</div>';
+  }).join('');
+  var ov=document.createElement('div');
+  ov.id='edgar-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.9);z-index:9400;display:flex;align-items:center;justify-content:center;padding:1rem';
+  ov.innerHTML='<div style="background:#fff;border-radius:16px;padding:1.4rem;max-width:440px;width:100%;border-top:6px solid #4f46e5;max-height:85vh;overflow:auto">'+
+    '<div style="font-size:15px;font-weight:800;color:#111">📌 Edgar — tienes '+tareas.length+' tarea(s) pendiente(s)</div>'+
+    lista+
+    (tareas.length>8?'<div style="font-size:11px;color:#777;margin-top:.3rem">...y '+(tareas.length-8)+' más en tu pestaña 📌.</div>':'')+
+    '<button onclick="document.getElementById(\'edgar-overlay\').remove()" style="width:100%;margin-top:.8rem;padding:.6rem;border:none;border-radius:10px;background:#4f46e5;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">✓ Entendido — voy a por ellas</button>'+
+    '</div>';
+  document.body.appendChild(ov);
 }
 
 // ── COMUNICADO DE JOSEP ──
 function showAvisoModal(a){
+  var yaVisto=!!(a.vistos&&a.vistos[CUR_USER]);
   var ov=document.createElement('div');
   ov.id='aviso-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.92);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem';
@@ -562,21 +653,33 @@ function showAvisoModal(a){
     '<div style="font-size:15px;font-weight:800;color:#111">📣 Comunicado de Josep</div>'+
     '<div style="font-size:10px;color:#777;margin-top:2px">'+(a.fecha||'')+'</div>'+
     '<div style="font-size:14px;color:#111;margin:.8rem 0;line-height:1.55;white-space:pre-wrap">'+a.texto+'</div>'+
-    '<button onclick="avisoVisto()" style="width:100%;padding:.65rem;border:none;border-radius:10px;background:#16a34a;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">✓ Visto — entendido</button>'+
-    '<div style="font-size:10px;color:#999;margin-top:.4rem;text-align:center">La alarma no parará hasta que pulses el botón. Josep verá tu confirmación.</div>'+
+    '<button onclick="avisoVisto()" style="width:100%;padding:.65rem;border:none;border-radius:10px;background:#16a34a;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">'+(yaVisto?'✓ Entendido (ya confirmado el '+a.vistos[CUR_USER]+')':'✓ Visto — entendido')+'</button>'+
+    '<div style="font-size:10px;color:#999;margin-top:.4rem;text-align:center">'+(yaVisto?'Este comunicado seguirá apareciendo al iniciar sesión hasta que Josep lo retire.':'La alarma no parará hasta que pulses el botón. Josep verá tu confirmación. El comunicado seguirá apareciendo en cada inicio de sesión hasta que Josep lo retire.')+'</div>'+
     '</div>';
   document.body.appendChild(ov);
-  startAlarm();
+  if(!yaVisto)startAlarm();
 }
 function avisoVisto(){
   stopAlarm();
   if(S.aviso){
     if(!S.aviso.vistos)S.aviso.vistos={};
-    S.aviso.vistos[CUR_USER]=new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
+    if(!S.aviso.vistos[CUR_USER]){
+      S.aviso.vistos[CUR_USER]=new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
+    }
   }
   var ov=document.getElementById('aviso-overlay');
   if(ov)ov.remove();
+  if(CUR_USER==='Edgar')showEdgarPopup();
+}
+
+function retirarAvisoPara(emp,on){
+  if(!S.aviso)return;
+  if(!S.aviso.retirados)S.aviso.retirados={};
+  S.aviso.retirados[emp]={t:Date.now(),on:!!on,
+    fecha:new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})};
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
+  rJosep();
 }
 function publicarAviso(){
   var ta=document.getElementById('aviso-nuevo');
@@ -585,7 +688,7 @@ function publicarAviso(){
   if(!confirm('¿Publicar este comunicado?\n\nSaldrá con alarma a cada empleado en su próximo inicio de sesión, hasta que pulse «Visto».'))return;
   S.aviso={id:Date.now(),texto:txt,
     fecha:new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
-    vistos:{}};
+    vistos:{},retirados:{}};
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
   rJosep();
   alert('✓ Comunicado publicado.');
@@ -599,10 +702,12 @@ function borrarAviso(){
 function showJosepResumen(){
   var pend=(S.TURNOS||[]).filter(function(t){return t.estado==='pendiente_josep';}).length;
   var pendR=(S.TURNOS||[]).filter(function(t){return t.estado==='pendiente_receptor';}).length;
+  var pendV=(S.VACACIONES||[]).filter(function(v){return v.estado==='pendiente';}).length;
   var lows=LIMPIEZA.filter(function(it){return ((S.limp&&S.limp[it.id])||0)<=it.min;}).length;
   var msgs=[];
   if(pend)msgs.push('🔁 '+pend+' cambio(s) de turno esperando TU aprobación.');
   if(pendR)msgs.push('⏳ '+pendR+' cambio(s) de turno pendientes de firma del receptor.');
+  if(pendV)msgs.push('🏖 '+pendV+' solicitud(es) de vacaciones esperando TU aprobación.');
   if(S.aviso&&S.aviso.texto){
     var vistos=Object.keys(S.aviso.vistos||{}).length;
     msgs.push('📣 Comunicado activo — visto por '+vistos+' empleado(s). Detalle en tu pestaña 👑.');
@@ -670,6 +775,7 @@ function syncFields(){
     aviso:JSON.stringify(S.aviso||null),
     limp:JSON.stringify(S.limp||{}),
     TURNOS:JSON.stringify((S.TURNOS||[]).slice(0,60)),
+    VACACIONES:JSON.stringify((S.VACACIONES||[]).slice(0,40)),
     logins:JSON.stringify((S.logins||[]).slice(0,100))
   };
 }
@@ -783,17 +889,24 @@ function loadEstado(cb){
         if(data.bil&&typeof data.bil==='object'&&!Array.isArray(data.bil)&&Object.keys(data.bil).length)S.bil=data.bil;
         if(data.limp&&typeof data.limp==='object'&&!Array.isArray(data.limp)&&Object.keys(data.limp).length)S.limp=data.limp;
         if(Array.isArray(data.TURNOS)&&data.TURNOS.length)S.TURNOS=filterTomb('TURNOS',mergeById(S.TURNOS,data.TURNOS));
+        if(Array.isArray(data.VACACIONES)&&data.VACACIONES.length)S.VACACIONES=filterTomb('VACACIONES',mergeById(S.VACACIONES,data.VACACIONES));
         if(Array.isArray(data.logins)&&data.logins.length){
-          S.logins=mergeById(S.logins,data.logins).sort(function(a,b){return regId(b)-regId(a);}).slice(0,100);
+          S.logins=filterTomb('logins',mergeById(S.logins,data.logins)).sort(function(a,b){return regId(b)-regId(a);}).slice(0,100);
         }
         if(data.aviso&&typeof data.aviso==='object'&&!Array.isArray(data.aviso)&&data.aviso.id){
           var la=S.aviso;
           if(!la||regId(data.aviso)>regId(la)){S.aviso=data.aviso;}
           else if(String(la.id)===String(data.aviso.id)){
-            // mismo comunicado: unir los vistos de ambos lados
+            // mismo comunicado: unir vistos y retirados de ambos lados
             la.vistos=la.vistos||{};
             var rv=data.aviso.vistos||{};
             Object.keys(rv).forEach(function(k){if(!la.vistos[k])la.vistos[k]=rv[k];});
+            la.retirados=la.retirados||{};
+            var rr=data.aviso.retirados||{};
+            Object.keys(rr).forEach(function(k){
+              var l=la.retirados[k];var r=rr[k];
+              if(r&&(!l||(r.t||0)>(l.t||0)))la.retirados[k]=r;
+            });
           }
         }
         if(Array.isArray(data.cajComments)&&data.cajComments.length) S.cajComments=filterTomb('cajComments',mergeById(S.cajComments,data.cajComments));
@@ -830,12 +943,12 @@ function load(){
       autoGuardarSemana();
       S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,bi_total:S.bi_total||0,bil:S.bil||{},em:S.em||'',tr:S.tr||'mañana',wch:{},wcom:{},wche:{},semana:semActual,
         comments:cleanWeeklyComments(S.comments),semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
-        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],logins:S.logins||[]};
+        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],VACACIONES:S.VACACIONES||[],logins:S.logins||[]};
     } else {
       S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,bi_total:S.bi_total||0,bil:S.bil||{},em:S.em||'',tr:S.tr||'mañana',
         wch:S.wch||{},wcom:S.wcom||{},wche:S.wche||{},semana:S.semana||semActual,
         comments:S.comments||{},semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
-        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],logins:S.logins||[]};
+        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],VACACIONES:S.VACACIONES||[],logins:S.logins||[]};
     }
     sv();
   }
@@ -1250,7 +1363,7 @@ function filterTomb(listKey,arr){
 }
 
 function refreshLogCache(cb){
-  fetch(SHEETS_URL)
+  fetchTimeout(SHEETS_URL,null,15000)
     .then(function(r){return r.json();})
     .then(function(d){if(Array.isArray(d))SH_LOG=d;if(cb)cb();})
     .catch(function(){if(cb)cb();});
@@ -1371,6 +1484,7 @@ function buildTrackerHtml(items, prefix, addFn, delFn, notaFn, title, placeholde
         (item.prov?'<div style="font-size:10px;color:var(--text3);margin-top:1px">🏭 Proveedor: <strong>'+item.prov+'</strong></div>':'')+
         (item.pos||item.fecha_entrega?'<div style="font-size:10px;color:var(--text3);margin-top:1px">'+(item.pos?(prefix==='sat'?'🧾 Ticket compra: ':'🧾 POS/Ticket: ')+'<strong>'+item.pos+'</strong>':'')+(item.pos&&item.fecha_entrega?' · ':'')+(item.fecha_entrega?(prefix==='sat'?'📅 Compra: ':'📅 Fecha compromiso: ')+'<strong>'+item.fecha_entrega+'</strong>':'')+'</div>':'')+
         (item.pos_sat||item.fecha_sat?'<div style="font-size:10px;color:var(--text3);margin-top:1px">'+(item.pos_sat?'🔧 Ticket SAT: <strong>'+item.pos_sat+'</strong>':'')+(item.pos_sat&&item.fecha_sat?' · ':'')+(item.fecha_sat?'📅 SAT generado: <strong>'+item.fecha_sat+'</strong>':'')+'</div>':'')+
+        (item.tipo_pedido?'<div style="font-size:10px;color:var(--text3);margin-top:1px">'+(item.tipo_pedido==='Manual'?'📄 Pedido MANUAL':'🤖 Pedido automático')+(item.albaran?' · Albarán: <strong>'+item.albaran+'</strong>':'')+(item.importe_albaran?' · <strong>'+item.importe_albaran+'€</strong>':'')+'</div>':'')+
         (item.num_envio?'<div style="font-size:10px;color:var(--text3);margin-top:1px">📦 Tracking: <strong>'+item.num_envio+'</strong>'+(item.empresa_envio?' · 🚚 '+item.empresa_envio:'')+'</div>':(item.empresa_envio?'<div style="font-size:10px;color:var(--text3);margin-top:1px">🚚 '+item.empresa_envio+'</div>':''))+
         '</div>'+
         '<div style="display:flex;flex-direction:column;gap:.25rem;flex-shrink:0;margin-left:.3rem">'+
@@ -1417,6 +1531,16 @@ function buildTrackerHtml(items, prefix, addFn, delFn, notaFn, title, placeholde
     '</div>':'')+
     '<input id="'+prefix+'_desc" type="text" placeholder="'+placeholder_desc+'" style="width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">'+
     '<input id="'+prefix+'_emp" type="text" placeholder="👤 Empleado/a que lo inicia" value="'+empPre+'" style="width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">'+
+    (prefix==='encargo'?
+    '<select id="encargo_tipo_pedido" onchange="var m=document.getElementById(\'encargo_manual_row\');if(m)m.style.display=this.value===\'Manual\'?\'flex\':\'none\';" style="width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">'+
+    '<option value="">🛒 Sistema de pedido...</option>'+
+    '<option>Automático</option>'+
+    '<option>Manual</option>'+
+    '</select>'+
+    '<div id="encargo_manual_row" style="display:none;gap:.3rem;margin-bottom:.3rem">'+
+    '<input id="encargo_albaran" type="text" placeholder="📄 Nº de albarán" style="flex:1;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
+    '<input id="encargo_importe_albaran" type="number" step="0.01" min="0" placeholder="💶 Importe albarán (€)" style="flex:1;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
+    '</div>':'')+
     ((prefix==='sat'||prefix==='encargo')?
     '<select id="'+prefix+'_prov" onchange="var o=document.getElementById(this.id+\'_otro\');if(o)o.style.display=this.value===\'Otro\'?\'block\':\'none\';" style="width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">'+
     '<option value="">🏭 Proveedor con el que se gestiona...</option>'+
@@ -1463,9 +1587,16 @@ function addTracker(prefix){
   var fecha_entrega=document.getElementById(prefix+'_fecha_entrega')?.value?.trim()||'';
   var pos_sat=document.getElementById(prefix+'_pos_sat')?.value?.trim()||'';
   var fecha_sat=document.getElementById(prefix+'_fecha_sat')?.value?.trim()||'';
+  var tipo_pedido=document.getElementById(prefix+'_tipo_pedido')?.value||'';
+  var albaran=document.getElementById(prefix+'_albaran')?.value?.trim()||'';
+  var importe_albaran=document.getElementById(prefix+'_importe_albaran')?.value||'';
+  if(prefix==='encargo'){
+    if(!tipo_pedido){alert('Indica el sistema de pedido: automático o manual.');return;}
+    if(tipo_pedido==='Manual'&&!albaran){alert('Pedido manual: indica el nº de albarán.');return;}
+  }
   var num_envio=document.getElementById(prefix+'_num_envio')?.value?.trim()||'';
   var empresa_envio=document.getElementById(prefix+'_empresa_envio')?.value?.trim()||'';
-  S[key].push({id:Date.now(),fecha:now,em:em,cliente:cliente,telefono:telefono,desc:desc,prov:prov,pos:pos,fecha_entrega:fecha_entrega,pos_sat:pos_sat,fecha_sat:fecha_sat,num_envio:num_envio,empresa_envio:empresa_envio,notas:[]});
+  S[key].push({id:Date.now(),fecha:now,em:em,cliente:cliente,telefono:telefono,desc:desc,prov:prov,pos:pos,fecha_entrega:fecha_entrega,pos_sat:pos_sat,fecha_sat:fecha_sat,tipo_pedido:tipo_pedido,albaran:albaran,importe_albaran:importe_albaran,num_envio:num_envio,empresa_envio:empresa_envio,notas:[]});
   if(document.getElementById(prefix+'_cliente'))document.getElementById(prefix+'_cliente').value='';
   if(document.getElementById(prefix+'_telefono'))document.getElementById(prefix+'_telefono').value='';
   document.getElementById(prefix+'_desc').value='';
@@ -1475,6 +1606,11 @@ function addTracker(prefix){
   if(po){po.value='';po.style.display='none';}
   if(document.getElementById(prefix+'_fecha_entrega'))document.getElementById(prefix+'_fecha_entrega').value='';
   if(document.getElementById(prefix+'_pos_sat'))document.getElementById(prefix+'_pos_sat').value='';
+  if(document.getElementById(prefix+'_tipo_pedido'))document.getElementById(prefix+'_tipo_pedido').value='';
+  if(document.getElementById(prefix+'_albaran'))document.getElementById(prefix+'_albaran').value='';
+  if(document.getElementById(prefix+'_importe_albaran'))document.getElementById(prefix+'_importe_albaran').value='';
+  var mr=document.getElementById(prefix+'_manual_row');
+  if(mr)mr.style.display='none';
   if(document.getElementById(prefix+'_num_envio'))document.getElementById(prefix+'_num_envio').value='';
   if(document.getElementById(prefix+'_empresa_envio'))document.getElementById(prefix+'_empresa_envio').value='';
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
@@ -1651,6 +1787,9 @@ function printTracker(prefix,idx){
   row(prefix==='sat'?'Fecha compra':'Fecha ticket',item.fecha_entrega);
   row('Ticket SAT',item.pos_sat);
   row('SAT generado',item.fecha_sat);
+  row('Sistema pedido',item.tipo_pedido);
+  row('Albarán',item.albaran);
+  row('Importe albarán',item.importe_albaran?item.importe_albaran+'€':'');
   row('Tracking',item.num_envio);
   row('Transportista',item.empresa_envio);
   row('Registrado',item.fecha+(item.em?' — '+item.em:''));
@@ -1682,6 +1821,10 @@ function rTurnos(){
   h+=ts.length?ts.map(function(t,i){
     return '<div style="background:var(--bg2);border-radius:10px;padding:.6rem .75rem;margin-bottom:.5rem;border-left:3px solid '+(t.estado==='aprobado'?'#16a34a':t.estado==='rechazado'?'#dc2626':'var(--accent)')+'">'+
       '<div style="display:flex;justify-content:space-between;gap:.4rem;align-items:flex-start">'+
+      '<div style="flex-shrink:0;width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;'+
+        (t.estado==='aprobado'?'background:#dcfce7;color:#16a34a':t.estado==='rechazado'?'background:#fee2e2;color:#dc2626':'background:#fef9c3;color:#b45309')+'" title="'+
+        (t.estado==='aprobado'?'Aprobado':t.estado==='rechazado'?'Rechazado':'Pendiente')+'">'+
+        (t.estado==='aprobado'?'✔':t.estado==='rechazado'?'✖':'…')+'</div>'+
       '<div style="flex:1">'+
       '<div style="font-size:13px;font-weight:700;color:var(--text1)">📅 '+t.fechaTurno+' — '+t.cedente+' ('+t.turnoOrig+') ⇄ '+t.receptor+' ('+t.turnoNuevo+')</div>'+
       '<div style="font-size:10px;color:var(--text3);margin-top:2px">Solicitado por <strong>'+t.cedente+'</strong> el '+t.fecha+(t.firmaReceptor?' · ✍️ Firmado por '+t.receptor+' el '+t.firmaReceptor:'')+'</div>'+
@@ -1770,6 +1913,122 @@ function delTurno(idx){
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rTurnos();
 }
 
+// ── 🏖 SOLICITUDES DE VACACIONES ──
+function fechaES(iso){var f=iso.split('-');return f[2]+'/'+f[1]+'/'+f[0];}
+function addDias(iso,n){var d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+function festivosEnRango(desde,hasta){
+  return FESTIVOS.filter(function(f){return f>=desde&&f<=hasta;});
+}
+function calcularBloqueVac(inicio){
+  // 15 días naturales; si incluye festivos, se prorroga tantos días (Art. 13 Convenio)
+  var fin=addDias(inicio,14);
+  var fest=festivosEnRango(inicio,fin);
+  var extra=fest.length;
+  // los días de prórroga pueden contener nuevos festivos
+  var finExt=addDias(fin,extra);
+  var fest2=festivosEnRango(inicio,finExt);
+  while(fest2.length>fest.length){fest=fest2;finExt=addDias(fin,fest.length);fest2=festivosEnRango(inicio,finExt);}
+  return {fin:finExt,festivos:fest};
+}
+function avisosVac(inicio,empleado){
+  var avisos=[];
+  var d=new Date(inicio+'T12:00:00');
+  if(d.getDay()!==1)avisos.push('El inicio debe ser LUNES (día elegido: '+['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][d.getDay()]+').');
+  if(FESTIVOS.indexOf(inicio)>-1)avisos.push('Ese lunes es FESTIVO — el inicio debe ser día laborable (Art. 13 Convenio).');
+  var b=calcularBloqueVac(inicio);
+  VAC_BLOQUEOS.forEach(function(bl){
+    if(inicio<=bl.hasta&&b.fin>=bl.desde)avisos.push('El bloque pisa un período BLOQUEADO por la empresa: '+bl.motivo+' ('+fechaES(bl.desde)+' a '+fechaES(bl.hasta)+').');
+  });
+  var antelacion=(d-new Date())/(24*3600*1000);
+  if(antelacion<60)avisos.push('Menos de 2 meses de antelación (quedan '+Math.max(0,Math.round(antelacion))+' días — Protocolo 3.1.1).');
+  (S.VACACIONES||[]).forEach(function(v){
+    if(v.estado==='rechazado')return;
+    if(v.empleado!==empleado&&inicio<=v.fin&&b.fin>=v.inicio)avisos.push('Coincide con las vacaciones de '+v.empleado+' ('+fechaES(v.inicio)+' a '+fechaES(v.fin)+') — no pueden coincidir dos personas (Protocolo 3.1.1).');
+  });
+  return avisos;
+}
+function rVacaciones(){
+  var vs=S.VACACIONES||[];
+  var h='<div class="rf"><h3>🏖 Solicitudes de vacaciones</h3>'+
+    '<p style="font-size:11px;color:var(--text3);margin-bottom:.5rem">📜 Según el Calendario 2027: 30 días naturales en <strong>2 bloques de 15 días</strong> consecutivos (bloque 1 libre elección · bloque 2 lo asigna la empresa) · inicio en <strong>lunes laborable</strong> · mínimo <strong>2 meses de antelación</strong> · no pueden coincidir dos personas · si el bloque incluye festivos, se prorroga tantos días (la app lo calcula solo) · períodos bloqueados: Navidad-Reyes, Fallas, Black Friday y Cyber Monday.</p>';
+  h+=vs.length?vs.map(function(v,i){
+    return '<div style="background:var(--bg2);border-radius:10px;padding:.6rem .75rem;margin-bottom:.5rem;border-left:3px solid '+(v.estado==='aprobado'?'#16a34a':v.estado==='rechazado'?'#dc2626':'var(--accent)')+'">'+
+      '<div style="display:flex;justify-content:space-between;gap:.4rem;align-items:flex-start">'+
+      '<div style="flex-shrink:0;width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;'+
+        (v.estado==='aprobado'?'background:#dcfce7;color:#16a34a':v.estado==='rechazado'?'background:#fee2e2;color:#dc2626':'background:#fef9c3;color:#b45309')+'">'+
+        (v.estado==='aprobado'?'✔':v.estado==='rechazado'?'✖':'…')+'</div>'+
+      '<div style="flex:1">'+
+      '<div style="font-size:13px;font-weight:700;color:var(--text1)">🏖 '+v.empleado+' — Bloque '+v.bloque+': '+fechaES(v.inicio)+' → '+fechaES(v.fin)+'</div>'+
+      '<div style="font-size:10px;color:var(--text3);margin-top:2px">Solicitado el '+v.fecha+(v.festivos&&v.festivos.length?' · prorrogado +'+v.festivos.length+' día(s) por festivo(s)':'')+'</div>'+
+      (v.avisos&&v.avisos.length?'<div style="font-size:10px;color:#b45309;margin-top:2px">⚠️ '+v.avisos.join(' · ')+'</div>':'')+
+      (v.motivo?'<div style="font-size:11px;color:var(--text2);margin-top:2px">📝 '+v.motivo+'</div>':'')+
+      '<div style="margin-top:.3rem;font-size:10px;font-weight:700">'+(v.estado==='aprobado'?'<span style="color:#16a34a">✅ Aprobado por Josep · '+(v.resuelto||'')+'</span>':v.estado==='rechazado'?'<span style="color:#dc2626">❌ Rechazado por Josep · '+(v.resuelto||'')+'</span>':'<span style="color:#b45309">⏳ Pendiente de aprobación de Josep</span>')+'</div>'+
+      '</div>'+
+      '<button data-idx="'+i+'" onclick="delVacacion(this.dataset.idx)" style="font-size:11px;padding:3px 8px;border:none;border-radius:6px;background:var(--red-bg);color:var(--red);cursor:pointer;flex-shrink:0">🗑</button>'+
+      '</div>'+
+      (v.estado==='pendiente'?'<div style="display:flex;gap:.3rem;margin-top:.4rem">'+
+        '<button data-idx="'+i+'" onclick="resolverVacacion(this.dataset.idx,true)" style="font-size:11px;padding:4px 10px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer">✅ Aprobar (PIN Josep)</button>'+
+        '<button data-idx="'+i+'" onclick="resolverVacacion(this.dataset.idx,false)" style="font-size:11px;padding:4px 10px;border:none;border-radius:6px;background:#dc2626;color:#fff;cursor:pointer">❌ Rechazar (PIN Josep)</button>'+
+        '</div>':'')+
+      '</div>';
+  }).join(''):'<div style="font-size:12px;color:var(--text3);padding:.3rem 0">Sin solicitudes</div>';
+  var opts=EMPLEADOS.filter(function(n){return n!=='Josep';}).map(function(n){return '<option'+(n===CUR_USER?' selected':'')+'>'+n+'</option>';}).join('');
+  h+='<div style="margin-top:.6rem;border-top:1px solid var(--border1);padding-top:.5rem">'+
+    '<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.4rem">+ Nueva solicitud (bloque de 15 días)</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.3rem;margin-bottom:.3rem">'+
+    '<div class="rfl"><label style="font-size:10px">Empleado/a</label><select id="vc_emp" style="width:100%;font-size:12px;padding:.3rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+opts+'</select></div>'+
+    '<div class="rfl"><label style="font-size:10px">Bloque</label><select id="vc_bloque" style="width:100%;font-size:12px;padding:.3rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit"><option value="1">1 — libre elección</option><option value="2">2 — asignado por empresa</option></select></div>'+
+    '<div class="rfl"><label style="font-size:10px">Lunes de inicio</label><input type="date" id="vc_inicio" style="width:100%;font-size:12px;padding:.3rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit"></div>'+
+    '</div>'+
+    '<input type="text" id="vc_motivo" placeholder="Observaciones (opcional)..." style="width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">'+
+    '<button onclick="addVacacion()" style="width:100%;font-size:12px;padding:.4rem;border:none;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit">✍️ Solicitar (firma con PIN del empleado)</button>'+
+    '</div></div>';
+  document.getElementById('tab-vacaciones').innerHTML=h;
+}
+function addVacacion(){
+  var emp=document.getElementById('vc_emp')?.value;
+  var bloque=document.getElementById('vc_bloque')?.value;
+  var inicio=document.getElementById('vc_inicio')?.value;
+  var motivo=document.getElementById('vc_motivo')?.value?.trim()||'';
+  if(!inicio){alert('Indica el lunes de inicio.');return;}
+  var avisos=avisosVac(inicio,emp);
+  var b=calcularBloqueVac(inicio);
+  var resumen='Bloque de 15 días: '+fechaES(inicio)+' → '+fechaES(b.fin)+
+    (b.festivos.length?'\n(prorrogado +'+b.festivos.length+' día(s) por festivos: '+b.festivos.map(fechaES).join(', ')+')':'');
+  if(avisos.length){
+    if(!confirm('⚠️ AVISOS:\n\n• '+avisos.join('\n• ')+'\n\n'+resumen+'\n\n¿Registrar la solicitud igualmente? (Josep la valorará)'))return;
+  }else{
+    if(!confirm(resumen+'\n\n¿Registrar la solicitud?'))return;
+  }
+  var pin=prompt('✍️ Firma de '+emp+'\nIntroduce el PIN de '+emp+':');
+  if(pin===null)return;
+  if(!verifyPinFor(emp,pin)){alert('❌ PIN incorrecto.');return;}
+  if(!S.VACACIONES)S.VACACIONES=[];
+  S.VACACIONES.unshift({id:Date.now(),estado:'pendiente',empleado:emp,bloque:bloque,
+    inicio:inicio,fin:b.fin,festivos:b.festivos,avisos:avisos,motivo:motivo,
+    fecha:new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})});
+  if(S.VACACIONES.length>40)S.VACACIONES=S.VACACIONES.slice(0,40);
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rVacaciones();
+  alert('✓ Solicitud registrada. Pendiente de aprobación de Josep.');
+}
+function resolverVacacion(idx,ok){
+  idx=parseInt(idx);
+  var v=S.VACACIONES&&S.VACACIONES[idx];
+  if(!v)return;
+  if(!pinJosep(ok?'aprobar vacaciones':'rechazar vacaciones'))return;
+  v.estado=ok?'aprobado':'rechazado';
+  v.resuelto=new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rVacaciones();
+}
+function delVacacion(idx){
+  idx=parseInt(idx);
+  if(!S.VACACIONES||!S.VACACIONES[idx])return;
+  if(!pinJosep('borrar solicitudes de vacaciones'))return;
+  if(S.VACACIONES[idx].id!==undefined)addTomb('VACACIONES',S.VACACIONES[idx].id);
+  S.VACACIONES.splice(idx,1);
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rVacaciones();
+}
+
 // ── 🧹 STOCK DE LIMPIEZA ──
 function rLimpieza(){
   var st=S.limp||{};
@@ -1804,6 +2063,20 @@ function setLimp(id,d){
 }
 
 // ── 👑 PANEL DE JOSEP ──
+var LOGINS_OPEN={};
+function tglLoginsDia(d){LOGINS_OPEN[d]=!LOGINS_OPEN[d];rJosep();}
+function delLoginsDia(d){
+  if(!confirm('¿Borrar los inicios de sesión del '+d+'?'))return;
+  (S.logins||[]).forEach(function(l){if((l.fecha||'—')===d&&l.id!==undefined)addTomb('logins',l.id);});
+  S.logins=(S.logins||[]).filter(function(l){return (l.fecha||'—')!==d;});
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rJosep();
+}
+function delLoginsTodos(){
+  if(!confirm('¿Borrar TODO el historial de inicios de sesión?'))return;
+  (S.logins||[]).forEach(function(l){if(l.id!==undefined)addTomb('logins',l.id);});
+  S.logins=[];
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rJosep();
+}
 function rJosep(){
   if(CUR_USER!=='Josep'){document.getElementById('tab-josep').innerHTML='<div class="rf"><p style="font-size:12px;color:var(--text3)">🔐 Acceso exclusivo de Josep — inicia sesión como Josep.</p></div>';return;}
   var a=S.aviso;
@@ -1815,20 +2088,50 @@ function rJosep(){
     ((a&&a.texto)?'<button onclick="borrarAviso()" style="font-size:12px;padding:.45rem .8rem;border:none;border-radius:8px;background:var(--red-bg);color:var(--red);cursor:pointer;font-family:inherit">🗑 Retirar</button>':'')+
     '</div>';
   if(a&&a.texto){
-    h+='<div style="margin-top:.6rem;font-size:12px;font-weight:700;color:var(--text2)">Estado de lectura — publicado el '+(a.fecha||'')+'</div>';
+    h+='<div style="margin-top:.6rem;font-size:12px;font-weight:700;color:var(--text2)">Estado por empleado — publicado el '+(a.fecha||'')+'</div>'+
+      '<p style="font-size:10px;color:var(--text3);margin:.15rem 0 .3rem">El comunicado sigue saliendo a cada empleado en cada inicio de sesión (aunque lo haya visto) hasta que lo retires aquí, uno a uno.</p>';
     EMPLEADOS.filter(function(n){return n!=='Josep';}).forEach(function(n){
       var v=a.vistos&&a.vistos[n];
-      h+='<div style="font-size:12px;padding:.25rem 0;border-bottom:1px solid var(--border1)">'+(v?'✅':'⏳')+' <strong>'+n+'</strong> — '+(v?'visto el '+v:'pendiente de ver')+'</div>';
+      var ret=a.retirados&&a.retirados[n]&&a.retirados[n].on;
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;font-size:12px;padding:.3rem 0;border-bottom:1px solid var(--border1)">'+
+        '<div>'+(v?'✅':'⏳')+' <strong>'+n+'</strong> — '+(v?'visto el '+v:'pendiente de ver')+
+        (ret?' · <span style="color:var(--text3)">🔕 retirado el '+(a.retirados[n].fecha||'')+'</span>':' · <span style="color:#b45309">🔔 activo</span>')+'</div>'+
+        (ret?'<button data-emp="'+n+'" onclick="retirarAvisoPara(this.dataset.emp,false)" style="font-size:10px;padding:2px 8px;border:none;border-radius:6px;background:var(--accent-bg);color:var(--accent);cursor:pointer;flex-shrink:0">🔔 Reactivar</button>'
+            :'<button data-emp="'+n+'" onclick="retirarAvisoPara(this.dataset.emp,true)" style="font-size:10px;padding:2px 8px;border:none;border-radius:6px;background:var(--red-bg);color:var(--red);cursor:pointer;flex-shrink:0">🔕 Retirar para '+n+'</button>')+
+        '</div>';
     });
   }
   h+='</div>';
-  // Inicios de sesión
+  // Inicios de sesión — agrupados por día, plegables
   var lg=S.logins||[];
-  h+='<div class="rf" style="margin-top:.6rem"><h3>🔑 Inicios de sesión ('+lg.length+')</h3>';
-  h+=lg.length?lg.slice(0,30).map(function(l){
-    return '<div style="font-size:12px;padding:.22rem 0;border-bottom:1px solid var(--border1)">👤 <strong>'+l.em+'</strong> · '+l.fecha+' · '+l.hora+'</div>';
-  }).join(''):'<div style="font-size:12px;color:var(--text3)">Sin registros</div>';
+  h+='<div class="rf" style="margin-top:.6rem"><h3>🔑 Inicios de sesión ('+lg.length+')</h3>'+
+    '<p style="font-size:10px;color:var(--text3);margin-bottom:.3rem">Pulsa un día para desplegarlo. Puedes borrar el día completo cuando lo hayas revisado.</p>';
+  if(lg.length){
+    var byDay={},orden=[];
+    lg.forEach(function(l){var d=l.fecha||'—';if(!byDay[d]){byDay[d]=[];orden.push(d);}byDay[d].push(l);});
+    orden.forEach(function(d){
+      var abierto=!!LOGINS_OPEN[d];
+      h+='<div style="border:1px solid var(--border1);border-radius:8px;margin-bottom:.35rem;overflow:hidden">'+
+        '<div data-d="'+d+'" onclick="tglLoginsDia(this.dataset.d)" style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;padding:.35rem .6rem;background:var(--bg2);cursor:pointer">'+
+        '<div style="font-size:12px;font-weight:700;color:var(--text1)">'+(abierto?'▼':'▶')+' 📅 '+d+' <span style="font-weight:400;color:var(--text3)">('+byDay[d].length+' inicio(s))</span></div>'+
+        '<button data-d="'+d+'" onclick="event.stopPropagation();delLoginsDia(this.dataset.d)" style="font-size:10px;padding:2px 8px;border:none;border-radius:6px;background:var(--red-bg);color:var(--red);cursor:pointer;flex-shrink:0">🗑 Borrar día</button>'+
+        '</div>'+
+        (abierto?'<div style="padding:.2rem .6rem .4rem">'+byDay[d].map(function(l){
+          return '<div style="font-size:12px;padding:.18rem 0;border-bottom:1px solid var(--border1)">👤 <strong>'+l.em+'</strong> · '+l.hora+'</div>';
+        }).join('')+'</div>':'')+
+        '</div>';
+    });
+    h+='<button onclick="delLoginsTodos()" style="margin-top:.2rem;font-size:11px;padding:.3rem .8rem;border:none;border-radius:6px;background:var(--red-bg);color:var(--red);cursor:pointer;font-family:inherit">🗑 Borrar todo el historial de inicios</button>';
+  }else{
+    h+='<div style="font-size:12px;color:var(--text3)">Sin registros</div>';
+  }
   h+='</div>';
+  // Vacaciones pendientes
+  var pendV=(S.VACACIONES||[]).filter(function(v){return v.estado==='pendiente';});
+  h+='<div class="rf" style="margin-top:.6rem"><h3>🏖 Vacaciones pendientes ('+pendV.length+')</h3>'+
+    (pendV.length?pendV.map(function(v){return '<div style="font-size:12px;padding:.25rem 0;border-bottom:1px solid var(--border1)">⏳ '+v.empleado+' — Bloque '+v.bloque+': '+fechaES(v.inicio)+' → '+fechaES(v.fin)+(v.avisos&&v.avisos.length?' <span style="color:#b45309">⚠️ con avisos</span>':'')+'</div>';}).join('')+
+    '<button onclick="go(\'vacaciones\',document.querySelector(\'.tab[onclick*=vacaciones]\'))" style="margin-top:.4rem;font-size:12px;padding:.4rem .8rem;border:none;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit">→ Ir a Vacaciones</button>'
+    :'<div style="font-size:12px;color:var(--text3)">Nada pendiente</div>')+'</div>';
   // Turnos pendientes
   var pend=(S.TURNOS||[]).filter(function(t){return t.estado==='pendiente_josep'||t.estado==='pendiente_receptor';});
   h+='<div class="rf" style="margin-top:.6rem"><h3>🔁 Cambios de turno pendientes ('+pend.length+')</h3>'+
@@ -2200,15 +2503,12 @@ function rRec(){
     '<div class="rfl"><label>Turno</label><select id="rt"><option value="mañana">Mañana</option><option value="tarde">Tarde</option></select></div>'+
     '<div class="rfl"><label>Nº albarán / pedido</label><input type="text" id="ra" placeholder="Ref..."></div>'+
     '<div class="rfl"><label>Recibido por</label><input type="text" id="re" placeholder="Nombre..."></div>'+
-    '<div class="rfl fu"><label>Observaciones / incidencias</label><textarea id="ro" placeholder="Defecto, código incorrecto, producto nuevo sin alta..."></textarea></div>'+
-    '<div class="rfl fu"><label>❌ Artículos faltantes (si hay incidencia)</label><textarea id="rfal" placeholder="Un artículo por línea..."></textarea>'+
-    '<div style="font-size:10px;color:var(--red);margin-top:2px;line-height:1.4">⚠️ Escribe el nombre <strong>EXACTO</strong> del artículo tal y como está codificado en OSPOS — así se puede reclamar al proveedor y ajustar stock sin errores.</div></div>'+
+    '<div class="rfl fu"><label>Observaciones iniciales (opcional)</label><textarea id="ro" placeholder="Notas al recibir el pedido..."></textarea></div>'+
     '</div>'+
-    '<div class="al alw" style="margin-bottom:.5rem">&#9888; <span><strong>Durante la recepción: prohibido el móvil personal.</strong> Defecto o falta → foto y comunicar a gerencia. Producto nuevo sin alta → avisar antes de continuar. Si no finaliza antes del cambio → avisar al compañero.</span></div>'+
-    '<div class="rbs">'+
-    '<button class="bok" onclick="addR(\'ok\')">&#10003; Recepción correcta</button>'+
-    '<button class="bnk" onclick="addR(\'nok\')">&#10005; Con incidencia</button>'+
-    '</div></div>'+
+    '<div class="al alw" style="margin-bottom:.5rem">&#9888; <span><strong>Durante la recepción: prohibido el móvil personal.</strong> Producto nuevo sin alta → avisar antes de continuar. Si no finaliza antes del cambio → avisar al compañero.</span></div>'+
+    '<p style="font-size:11px;color:var(--text3);margin-bottom:.4rem">Flujo: 1️⃣ <strong>Registrar</strong> al llegar el pedido · 2️⃣ <strong>Recepción completada</strong> al cerrarla en el sistema (queda constancia de cuándo) · 3️⃣ <strong>Comprobación</strong>: correcta o con incidencia, con las faltas.</p>'+
+    '<button class="bok" style="width:100%" onclick="addR()">&#x1F4E6; Registrar recepción</button>'+
+    '</div>'+
     '<div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:.4rem">Recepciones de hoy ('+recs.length+')</div>';
 
   var empPre=(document.getElementById('emp')?.value||S.em||'').replace(/"/g,'&quot;');
@@ -2218,10 +2518,16 @@ function rRec(){
       '<div class="rih">'+
       '<div><strong style="font-size:13px">'+r.prov+'</strong>'+(r.alb?'<span style="font-size:11px;color:var(--text3);margin-left:.3rem">#'+r.alb+'</span>':'')+'</div>'+
       '<div style="display:flex;align-items:center;gap:.3rem">'+
-      '<span class="rp p'+(r.est==='ok'?'ok':'nk')+'">'+(r.est==='ok'?'✓ Correcta':'✗ Incidencia')+'</span>'+
+      (r.est==='ok'?'<span class="rp pok">✓ Correcta</span>'
+        :r.est==='nok'?'<span class="rp pnk">✗ Incidencia</span>'
+        :r.est==='completada'?'<span class="rp" style="background:#fef9c3;color:#854d0e">🕐 Pendiente comprobación</span>'
+        :'<span class="rp" style="background:#e0e7ff;color:#3730a3">📦 Abierta</span>')+
       '<button class="bd" onclick="dR('+gi+')" title="Solo Josep puede borrar">&#x1F5D1;</button>'+
       '</div></div>'+
-      '<div class="rd">'+fmtFecha(r.fecha)+' · '+r.tur+' · '+r.hora+' · '+(r.emp||'—')+(r.obs?'<div style="margin-top:2px;color:var(--red)">&#9888; '+r.obs+'</div>':'')+
+      '<div class="rd">'+fmtFecha(r.fecha)+' · '+r.tur+' · Recibida '+r.hora+' · '+(r.emp||'—')+
+      (r.completada?' · <strong>Recepcionada '+r.completada+'</strong>':'')+
+      (r.comprobada?' · Comprobada '+r.comprobada:'')+
+      (r.obs?'<div style="margin-top:2px;color:var(--red)">&#9888; '+r.obs+'</div>':'')+
       (r.faltas?'<div style="margin-top:3px;padding:.3rem .5rem;background:var(--red-bg);border-radius:6px;color:var(--red)"><strong>❌ Faltas (nombre OSPOS):</strong>'+String(r.faltas).split('\n').map(function(x){return x.trim()?'<div>• '+x+'</div>':'';}).join('')+'</div>':'')+'</div>'+
       (r.notas&&r.notas.length?
         '<div style="margin-top:.35rem">'+r.notas.map(function(n,ni){
@@ -2234,6 +2540,17 @@ function rRec(){
             '</div>'+
             '</div>';
         }).join('')+'</div>':'')+
+      (!r.est||r.est==='abierta'?
+        '<button data-gi="'+gi+'" onclick="completarRec(this.dataset.gi)" style="margin-top:.35rem;width:100%;font-size:12px;padding:.4rem;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-family:inherit">✅ Recepción completada (cerrada en el sistema)</button>':'')+
+      (r.est==='completada'?
+        '<div style="margin-top:.35rem;padding:.5rem;background:var(--bg1);border-radius:8px;border:1px dashed var(--border2)">'+
+        '<div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:.3rem">🔍 Comprobación de la recepción</div>'+
+        '<textarea id="rec_vobs_'+gi+'" rows="2" placeholder="Observaciones de la comprobación (defecto, código incorrecto...)" style="width:100%;font-size:11px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg2);color:var(--text1);font-family:inherit;margin-bottom:.3rem"></textarea>'+
+        '<textarea id="rec_vfal_'+gi+'" rows="2" placeholder="❌ Artículos faltantes — nombre EXACTO de OSPOS, uno por línea..." style="width:100%;font-size:11px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg2);color:var(--text1);font-family:inherit;margin-bottom:.3rem"></textarea>'+
+        '<div style="display:flex;gap:.3rem">'+
+        '<button data-gi="'+gi+'" onclick="comprobarRec(this.dataset.gi,\'ok\')" style="flex:1;font-size:12px;padding:.35rem;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-family:inherit">✓ Correcta</button>'+
+        '<button data-gi="'+gi+'" onclick="comprobarRec(this.dataset.gi,\'nok\')" style="flex:1;font-size:12px;padding:.35rem;border:none;border-radius:6px;background:#dc2626;color:#fff;cursor:pointer;font-family:inherit">✗ Con incidencia</button>'+
+        '</div></div>':'')+
       '<div style="display:flex;gap:.3rem;margin-top:.35rem">'+
       '<input id="rec_nota_emp_'+gi+'" type="text" placeholder="👤 Quién" value="'+empPre+'" style="width:90px;flex-shrink:0;font-size:11px;padding:3px 7px;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
       '<input id="rec_nota_'+gi+'" type="text" placeholder="Añadir comentario sobre esta recepción..." style="flex:1;font-size:11px;padding:3px 7px;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+
@@ -2281,7 +2598,7 @@ function addRecNota(gi){
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rRec();
 }
 
-function addR(est){
+function addR(){
   var pv=document.getElementById('rp')?.value;
   if(!pv){alert('Selecciona el proveedor');return;}
   RC.unshift({
@@ -2290,13 +2607,36 @@ function addR(est){
     alb:document.getElementById('ra')?.value||'',
     emp:document.getElementById('re')?.value||'',
     obs:document.getElementById('ro')?.value||'',
-    faltas:document.getElementById('rfal')?.value?.trim()||'',
-    est:est,
+    faltas:'',
+    est:'abierta',
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
     notas:[]
   });
   if(RC.length>200)RC=RC.slice(0,200);
-  sv();rRec();
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rRec();
+}
+
+function completarRec(gi){
+  gi=parseInt(gi);
+  if(!RC[gi])return;
+  RC[gi].est='completada';
+  RC[gi].completada=new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rRec();
+}
+
+function comprobarRec(gi,est){
+  gi=parseInt(gi);
+  if(!RC[gi])return;
+  var obs=document.getElementById('rec_vobs_'+gi)?.value?.trim()||'';
+  var fal=document.getElementById('rec_vfal_'+gi)?.value?.trim()||'';
+  if(est==='nok'&&!obs&&!fal){
+    if(!confirm('Has marcado incidencia sin observaciones ni faltas.\n¿Continuar igualmente?'))return;
+  }
+  RC[gi].est=est;
+  if(obs)RC[gi].obs=(RC[gi].obs?RC[gi].obs+' · ':'')+obs;
+  if(fal)RC[gi].faltas=(RC[gi].faltas?RC[gi].faltas+'\n':'')+fal;
+  RC[gi].comprobada=new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rRec();
 }
 
 function dR(gi){
@@ -2390,7 +2730,7 @@ var LAST_LOCAL_CHANGE=0; // timestamp of last local check change
 (function(){
   var st=document.createElement('style');
   st.textContent=
-    '#reminder-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:1rem}'+
+    '#reminder-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9200;align-items:center;justify-content:center;padding:1rem}'+
     '#reminder-overlay.show{display:flex}'+
     '#reminder-box{background:var(--bg1);border-radius:16px;padding:1.25rem 1.25rem 1rem;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.25)}'+
     '#reminder-box h3{font-size:15px;font-weight:700;color:var(--text1);margin-bottom:.75rem;display:flex;align-items:center;gap:.4rem}'+
@@ -2530,8 +2870,8 @@ function gRegRec(){
   var entryRec={id:Date.now(),tipo:'recepciones',
     fecha:new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
     hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
-    em:em,tr:tr,comp:recs.filter(function(r){return r.est==='ok';}).length,tot:recs.length,
-    he:recs.map(function(r){var nt=(r.notas&&r.notas.length)?' → '+r.notas.map(function(n){return n.texto+' ('+n.em+')';}).join(' | '):'';var fl=r.faltas?' ❌ Faltas OSPOS: '+String(r.faltas).split('\n').filter(function(x){return x.trim();}).join(' ; '):'';return r.prov+(r.alb?' #'+r.alb:'')+(r.est==='ok'?' ✓':' ✗'+(r.obs?' ('+r.obs+')':''))+fl+nt;}),
+    em:em,tr:tr,comp:recs.filter(function(r){return r.est==='ok'||r.est==='nok';}).length,tot:recs.length,
+    he:recs.map(function(r){var nt=(r.notas&&r.notas.length)?' → '+r.notas.map(function(n){return n.texto+' ('+n.em+')';}).join(' | '):'';var fl=r.faltas?' ❌ Faltas OSPOS: '+String(r.faltas).split('\n').filter(function(x){return x.trim();}).join(' ; '):'';var st=r.est==='ok'?' ✓ correcta':r.est==='nok'?' ✗ incidencia'+(r.obs?' ('+r.obs+')':''):r.est==='completada'?' 🕐 pendiente de comprobación':' 📦 abierta';return r.prov+(r.alb?' #'+r.alb:'')+st+(r.completada?' · recepcionada '+r.completada:'')+fl+nt;}),
     pe:[],semana:'',rec:recs.length,rnk:recs.filter(function(r){return r.est==='nok';}).length};
   LG.unshift(entryRec);
   if(LG.length>120)LG=LG.slice(0,120);
@@ -2693,21 +3033,40 @@ function renderLogEntries(data){
   }).join('');
 }
 
+function fetchTimeout(url,opts,ms){
+  var ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
+  var o=opts||{};
+  if(ctrl)o.signal=ctrl.signal;
+  var t=ctrl?setTimeout(function(){ctrl.abort();},ms||15000):null;
+  return fetch(url,o).finally(function(){if(t)clearTimeout(t);});
+}
+
 function rLog(){
   var sr=document.getElementById('sr');var ll=document.getElementById('ll');
   if(!sr||!ll)return;
-  ll.innerHTML='<div class="empty"><span class="empty-icon" style="font-size:20px">⏳</span>Cargando registros...</div>';
+  // 1) pintar al instante lo que ya tenemos (caché de Sheets o registros locales)
+  if(SH_LOG&&SH_LOG.length){
+    renderLogEntries(SH_LOG);
+    ll.innerHTML='<div style="font-size:11px;color:var(--text3);margin-bottom:.4rem">↻ Actualizando desde Google Sheets...</div>'+ll.innerHTML;
+  }else if(LG&&LG.length){
+    renderLogEntries(LG);
+    ll.innerHTML='<div style="font-size:11px;color:var(--text3);margin-bottom:.4rem">↻ Actualizando desde Google Sheets...</div>'+ll.innerHTML;
+  }else{
+    ll.innerHTML='<div class="empty"><span class="empty-icon" style="font-size:20px">⏳</span>Cargando registros...</div>';
+  }
   sr.innerHTML='';
-  fetch(SHEETS_URL)
+  // 2) refrescar en segundo plano con límite de 15 segundos
+  fetchTimeout(SHEETS_URL,null,15000)
     .then(function(r){return r.json();})
     .then(function(data){
-      SH_LOG=data;
-      renderLogEntries(data);
+      if(Array.isArray(data)){SH_LOG=data;}
+      if(CUR==='registro')renderLogEntries(SH_LOG&&SH_LOG.length?SH_LOG:LG);
     })
     .catch(function(){
-      renderLogEntries(LG);
+      if(CUR!=='registro')return;
+      renderLogEntries(SH_LOG&&SH_LOG.length?SH_LOG:LG);
       var ll2=document.getElementById('ll');
-      if(ll2)ll2.innerHTML+='<div class="al alw" style="margin-top:.5rem">&#9888; Sin conexion — mostrando registros locales</div>';
+      if(ll2)ll2.innerHTML+='<div class="al alw" style="margin-top:.5rem">&#9888; Sheets no responde — mostrando la última copia disponible. Reintenta con la pestaña.</div>';
     });
 }
 
@@ -2797,7 +3156,7 @@ function rAyuda(){
   var secs=[
     {ic:"❓",ti:"¿Cómo funciona esta app?",body:
       "<p>Esta app es el checklist de turno de White Cloud. Cada pestaña cubre un área distinta del turno.</p>"+"<p style=\"margin-top:.5rem\"><strong>Fila 1:</strong> ☀️ Diarias · 🔧 SATs · 🛒 Encargos · 🚚 Envíos · 📦 Recepciones</p>"+"<p style=\"margin-top:.2rem\"><strong>Fila 2:</strong> 📅 Semanales · 💰 Cashlogy · 📵 Desconexión · 📋 Registro</p>"+
-      "<p style=\"margin-top:.2rem\"><strong>Fila 3:</strong> 📌 Edgar · 💡 Sugerencias · 🔁 Turnos · 🧹 Limpieza · 👑 Josep (solo visible para Josep) · ❓ Ayuda</p>"+
+      "<p style=\"margin-top:.2rem\"><strong>Fila 3:</strong> 📌 Edgar · 💡 Sugerencias · 🔁 Turnos · 🏖 Vacaciones · 🧹 Limpieza · 👑 Josep (solo visible para Josep) · ❓ Ayuda</p>"+
       "<p style=\"margin-top:.5rem\">Los datos se sincronizan automáticamente con Google Sheets: checks, comentarios, SATs, encargos, envíos, recepciones y desconexión viajan solos entre dispositivos. Si el turno de mañana marca tareas, el de tarde las verá marcadas desde cualquier PC (la app refresca cada 5 minutos, o al instante recargando la página).</p>"+
       "<p style=\"margin-top:.5rem\">Al empezar el turno escribe tu nombre en el campo <strong>Empleado/a</strong> y selecciona tu turno (mañana / tarde / completo). Tu nombre se usa para firmar checks, notas y comentarios.</p>"+
       "<p style=\"margin-top:.5rem\">Al terminar el turno pulsa <strong>💾 Guardar todos los registros del turno</strong> (botón morado superior) — guarda de una vez Diarias, Cashlogy, Semanales, Recepciones y Desconexión.</p>"+
@@ -2829,7 +3188,7 @@ function rAyuda(){
       "<p style=\"margin-top:.4rem\">Cuando el dispositivo se entregue, deja una nota (\"entregado\") — el borrado de la ficha lo hace Josep con su PIN.</p>"
     },
     {ic:"🛒",ti:"Encargos — pedidos de clientes",body:
-      "<p>La pestaña Encargos registra los pedidos realizados por clientes. Mismo funcionamiento que SATs: cliente y 📞 teléfono (clicable — abre el WhatsApp del cliente), quién lo inicia, proveedor con el que se gestiona (desplegable obligatorio, con opción «Otro» para escribirlo a mano), POS/ticket, fecha, notas firmadas y botón 🖨 Imprimir.</p>"+
+      "<p>La pestaña Encargos registra los pedidos realizados por clientes. Mismo funcionamiento que SATs: cliente y 📞 teléfono (clicable — abre el WhatsApp del cliente), quién lo inicia, <strong>sistema de pedido</strong> (🤖 automático o 📄 manual — si es manual se indican el nº de albarán y su importe), proveedor con el que se gestiona (desplegable obligatorio, con opción «Otro» para escribirlo a mano), POS/ticket, fecha, notas firmadas y botón 🖨 Imprimir.</p>"+
       "<p style=\"margin-top:.4rem\">Úsalo para registrar cualquier producto pedido expresamente para un cliente y hacer seguimiento hasta su recogida (llegó, avisado, recogido...).</p>"+
       "<p style=\"margin-top:.4rem\">Solo Josep puede borrar la ficha o sus notas con su PIN — al recogerse, deja una nota indicándolo.</p>"
     },
@@ -2841,8 +3200,8 @@ function rAyuda(){
     },
     {ic:"📦",ti:"Recepciones — flujo completo e historial",body:
       "<p>Cada vez que llega un pedido rellena el formulario: proveedor · turno · nº albarán · quién lo recibe · observaciones.</p>"+
-      "<p style=\"margin-top:.5rem\">Pulsa <strong>Recepción correcta</strong> o <strong>Con incidencia</strong>. En caso de incidencia haz foto y comunica a gerencia.</p>"+
-      "<p style=\"margin-top:.5rem\"><strong>❌ Artículos faltantes:</strong> si falta algo, escríbelo en su campo, un artículo por línea, con el nombre <strong>EXACTO</strong> tal y como está codificado en OSPOS — imprescindible para reclamar al proveedor y ajustar stock sin errores.</p>"+
+"<p style=\"margin-top:.5rem\"><strong>Flujo en 3 pasos:</strong> 1️⃣ <strong>Registrar recepción</strong> al llegar el pedido (queda 📦 Abierta) · 2️⃣ pulsar <strong>✅ Recepción completada</strong> al cerrarla en el sistema — queda constancia de la fecha y hora del cierre (🕐 Pendiente de comprobación) · 3️⃣ al hacer la comprobación del stock recibido, marcar <strong>✓ Correcta</strong> o <strong>✗ Con incidencia</strong>, añadiendo las observaciones y los artículos faltantes.</p>"+
+      "<p style=\"margin-top:.5rem\"><strong>❌ Artículos faltantes:</strong> en la comprobación, escríbelos un artículo por línea con el nombre <strong>EXACTO</strong> tal y como está codificado en OSPOS — imprescindible para reclamar al proveedor y ajustar stock sin errores. En caso de incidencia haz foto y comunica a gerencia.</p>"+
       "<p style=\"margin-top:.5rem\">Se pueden registrar varios pedidos a lo largo del día. <strong>Al finalizar el turno</strong> pulsa <strong>Cerrar recepciones del turno</strong>.</p>"+
       "<p style=\"margin-top:.5rem\"><strong>📚 Historial:</strong> al final de la pestaña quedan todas las recepciones anteriores. Sobre cualquier recepción (de hoy o del historial) se pueden añadir comentarios firmados (<em>✍️ Añadido por — fecha</em>) — útil para anotar incidencias detectadas después. Ninguna recepción se borra sola: solo Josep con su PIN.</p>"+
       "<p style=\"margin-top:.4rem\">⚠️ Durante la recepción: móvil personal prohibido.</p>"
@@ -2888,7 +3247,8 @@ function rAyuda(){
     {ic:"📌",ti:"Edgar — tareas pendientes",body:
       "<p>La pestaña 📌 Edgar recoge las tareas que se le solicitan: descripción de la tarea, quién la solicita y fecha automática.</p>"+
       "<p style=\"margin-top:.4rem\">Cada solicitud admite <strong>comentarios firmados</strong> — para que Edgar anote avances o dudas y quien la pidió pueda concretar — y cada comentario acepta <strong>↳ respuestas</strong> debajo, para mantener la conversación ordenada.</p>"+
-      "<p style=\"margin-top:.4rem\">Cuando la tarea se complete, deja un comentario («hecho») — la ficha la borra Josep con su PIN al revisar. Se sincroniza entre dispositivos como el resto de pestañas.</p>"
+      "<p style=\"margin-top:.4rem\">Cuando la tarea se complete, deja un comentario («hecho») — la ficha la borra Josep con su PIN al revisar. Se sincroniza entre dispositivos como el resto de pestañas.</p>"+
+      "<p style=\"margin-top:.4rem\">📌 Cuando <strong>Edgar</strong> inicia sesión, le aparece automáticamente una ventana con sus tareas pendientes (solo a él).</p>"
     },
     {ic:"💡",ti:"Sugerencias — buzón del equipo",body:
       "<p>Buzón de ideas de los empleados: mejoras de tienda, productos, horarios, procesos o de esta misma app.</p>"+
@@ -2898,21 +3258,29 @@ function rAyuda(){
     {ic:"🔑",ti:"Inicio de sesión — quién eres",body:
       "<p>Al abrir la app hay que identificarse: elige tu nombre en el desplegable e introduce tu PIN. Tu nombre queda puesto automáticamente en el campo Empleado/a y firma todo lo que hagas.</p>"+
       "<p style=\"margin-top:.4rem\">La sesión dura mientras la pestaña del navegador esté abierta. Para cambiar de usuario pulsa <strong>Cerrar sesión</strong> (arriba a la derecha).</p>"+
-      "<p style=\"margin-top:.4rem\">Cada inicio de sesión queda registrado y Josep puede consultarlos en su panel.</p>"
+      "<p style=\"margin-top:.4rem\">Cada inicio de sesión queda registrado; Josep los ve en su panel agrupados por día (plegables) y puede borrarlos por día o el historial completo cuando los haya revisado.</p>"
     },
     {ic:"📱",ti:"Alarma horaria — WhatsApp y redes",body:
       "<p>Cada 60 minutos suena una alarma con un aviso para revisar <strong>WhatsApp y las redes sociales</strong> (Instagram, Facebook, Google Business) y responder los mensajes pendientes.</p>"+
       "<p style=\"margin-top:.4rem\">El pitido no para hasta pulsar <strong>✓ Revisado</strong>. Al pulsarlo, el contador de 60 minutos vuelve a empezar.</p>"+
-      "<p style=\"margin-top:.4rem\"><strong>Horario activo:</strong> L-V 10:00-21:00 · Sábado 10:30-21:00 · Domingos y festivos 12:00-15:00 y 16:00-21:00. Fuera de ese horario no suena. Los festivos se configuran en la lista FESTIVOS del código (gerencia).</p>"
+      "<p style=\"margin-top:.4rem\"><strong>Horario activo:</strong> L-V 10:00-21:00 · Sábado 10:30-21:00 · Domingos y festivos 12:00-15:00 y 16:00-21:00. Fuera de ese horario no suena. Los festivos de 2027 (Valencia capital) ya están cargados del calendario oficial; se amplían en la lista FESTIVOS del código (gerencia).</p>"+
+      "<p style=\"margin-top:.4rem\">El aviso salta cada <strong>30 minutos</strong> y el contador NO se reinicia al recargar la página.</p>"+
+      "<p style=\"margin-top:.5rem\"><strong>🌆 Alarma de pre-cierre:</strong> todos los días a las <strong>20:30</strong> salta un aviso con alarma (una sola vez al día) recordando empezar las tareas de Reposición pre-cierre. Al pulsar «✓ Entendido» la app te lleva directamente a la pestaña Diarias.</p>"
     },
     {ic:"📣",ti:"Comunicados de Josep — con acuse de recibo",body:
-      "<p>Josep puede publicar un comunicado desde su panel 👑. A cada empleado le aparece en ventana emergente <strong>con alarma</strong> en su siguiente inicio de sesión.</p>"+
-      "<p style=\"margin-top:.4rem\">La alarma no para hasta pulsar <strong>✓ Visto — entendido</strong>. Una vez visto, no vuelve a salir a ese empleado, y Josep ve en su panel quién lo ha visto (con fecha y hora) y quién no.</p>"
+      "<p>Josep puede publicar un comunicado desde su panel 👑. A cada empleado le aparece en ventana emergente en <strong>cada inicio de sesión</strong> — la primera vez con alarma, que no para hasta pulsar <strong>✓ Visto — entendido</strong>.</p>"+
+      "<p style=\"margin-top:.4rem\">Aunque lo hayas confirmado, el comunicado te seguirá saliendo como recordatorio (ya sin alarma) hasta que <strong>Josep lo retire para ti</strong> desde su panel, donde ve quién lo ha visto (con fecha y hora), quién no, y lo retira o reactiva empleado a empleado.</p>"
     },
     {ic:"🔁",ti:"Turnos — solicitudes de cambio",body:
       "<p>Versión digital del registro en papel. Cada solicitud recoge: fecha del turno, empleado cedente y su turno, empleado receptor y el turno cambiado, y el motivo.</p>"+
       "<p style=\"margin-top:.4rem\"><strong>Flujo de firmas:</strong> 1) el cedente crea la solicitud firmando con su PIN · 2) el receptor firma con el suyo · 3) Josep aprueba o rechaza con su PIN. Cada paso queda fechado.</p>"+
-      "<p style=\"margin-top:.4rem\">⚖️ Condiciones (art. 20 ET): comunicar con <strong>mínimo 72 horas</strong> salvo fuerza mayor (la app avisa si queda menos); el cambio no altera el cómputo de horas semanales; el registro se conserva. Josep ve las solicitudes pendientes al iniciar sesión y en su panel. Solo Josep puede borrar solicitudes.</p>"
+      "<p style=\"margin-top:.4rem\">⚖️ Condiciones (art. 20 ET): comunicar con <strong>mínimo 72 horas</strong> salvo fuerza mayor (la app avisa si queda menos); el cambio no altera el cómputo de horas semanales; el registro se conserva. Josep ve las solicitudes pendientes al iniciar sesión y en su panel. Solo Josep puede borrar solicitudes.</p>"+
+      "<p style=\"margin-top:.4rem\">Cada solicitud lleva a la izquierda un <strong>check grande</strong>: ✔ verde = aprobada · ✖ rojo = rechazada · … ámbar = pendiente.</p>"
+    },
+    {ic:"🏖",ti:"Vacaciones — solicitudes 2027",body:
+      "<p>Digitaliza el Calendario de Vacaciones 2027: cada empleado disfruta 30 días naturales en <strong>2 bloques de 15 días consecutivos</strong> (bloque 1 de libre elección, bloque 2 asignado por la empresa).</p>"+
+      "<p style=\"margin-top:.4rem\"><strong>Al solicitar</strong>, la app comprueba automáticamente: que el inicio sea lunes laborable, la antelación mínima de 2 meses, que no coincida con las vacaciones de un compañero, y que el bloque no pise los períodos bloqueados (Navidad-Reyes, Fallas, Black Friday, Cyber Monday). Si el bloque incluye festivos, <strong>se prorroga automáticamente</strong> tantos días como festivos (Art. 13 Convenio) y la fecha fin lo refleja.</p>"+
+      "<p style=\"margin-top:.4rem\">Los avisos no bloquean la solicitud (queda constancia de ellos en la ficha), la firma el empleado con su PIN y la aprueba o rechaza Josep con el suyo — con el mismo check grande ✔/✖/… que en Turnos. Solo Josep puede borrar solicitudes.</p>"
     },
     {ic:"🧹",ti:"Limpieza — control de stock",body:
       "<p>Contadores por producto, como los tubos de Cashlogy: papel, papel higiénico, limpiacristales, fregasuelos, lejía, toallitas, bolsas de basura, gamuzas MOPA y guantes.</p>"+
@@ -2928,7 +3296,7 @@ function rAyuda(){
     {ic:"📊",ti:"Registro — qué aparece y cómo interpretarlo",body:
       "<p>Guarda el historial de todos los snapshots de todas las pestañas. Cada entrada muestra tipo · empleado · turno · fecha · hora · tareas completadas.</p>"+
       "<p style=\"margin-top:.4rem\">Tipos: 📋 Diario · 💰 Cashlogy · 📦 Recepciones · 📵 Desconexión · 📅 Semanal.</p>"+
-      "<p style=\"margin-top:.4rem\">El historial se guarda en Google Sheets y es accesible desde cualquier dispositivo — no se pierde al cambiar de equipo o limpiar el navegador.</p>"+
+      "<p style=\"margin-top:.4rem\">El historial se guarda en Google Sheets y es accesible desde cualquier dispositivo — no se pierde al cambiar de equipo o limpiar el navegador. La pestaña muestra al instante la última copia disponible y se actualiza en segundo plano (máx. 15 s de espera).</p>"+
       "<p style=\"margin-top:.4rem\">Esta pestaña no tiene botones de borrado: la única forma de eliminar un registro es desde la sección al final de su pestaña, con el PIN de Josep (o editando el Google Sheets directamente).</p>"
     }
   ];
@@ -2962,7 +3330,7 @@ function go(tab,el){
   CUR=tab;
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   if(el)el.classList.add('active');
-  ['diarias','cashlogy','recepciones','semanales','desconexion','sats','encargos','envios','edgar','sugerencias','turnos','limpieza','josep','registro','ayuda'].forEach(function(t){
+  ['diarias','cashlogy','recepciones','semanales','desconexion','sats','encargos','envios','edgar','sugerencias','turnos','vacaciones','limpieza','josep','registro','ayuda'].forEach(function(t){
     var e=document.getElementById('tab-'+t);if(e)e.style.display=t===tab?'block':'none';
   });
   if(tab==='diarias')rDiarias();
@@ -2976,6 +3344,7 @@ function go(tab,el){
   else if(tab==='edgar')rEdgar();
   else if(tab==='sugerencias')rSugerencias();
   else if(tab==='turnos')rTurnos();
+  else if(tab==='vacaciones')rVacaciones();
   else if(tab==='limpieza')rLimpieza();
   else if(tab==='josep')rJosep();
   else if(tab==='ayuda')rAyuda();
@@ -3015,7 +3384,7 @@ function resetDia(){
   S={date:today(),ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,bi_total:S.bi_total||0,bil:S.bil||{},em:em,tr:tr,
     wch:S.wch||{},wcom:S.wcom||{},wche:S.wche||{},semana:S.semana||weekKey(),
     comments:cleanDailyComments(S.comments||{}),semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
-    SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],logins:S.logins||[]};
+    SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],VACACIONES:S.VACACIONES||[],logins:S.logins||[]};
   OS={};
   // Log who pressed Nuevo día
   var logEm=em||'(desconocido)';
