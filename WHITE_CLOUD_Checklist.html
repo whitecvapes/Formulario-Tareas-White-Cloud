@@ -2039,11 +2039,22 @@ function rVacaciones(){
   empList().forEach(function(e){
     var apro=(S.VACACIONES||[]).filter(function(v){return v.empleado===e.n&&v.estado==='aprobado';});
     var pend=(S.VACACIONES||[]).filter(function(v){return v.empleado===e.n&&v.estado==='pendiente';}).length;
-    var dias=apro.length*15;
+    var dias=apro.reduce(function(a,v){
+      var d=Math.round((new Date(v.fin+'T12:00:00')-new Date(v.inicio+'T12:00:00'))/(24*3600*1000))+1;
+      return a+d-((v.festivos&&v.festivos.length)||0);
+    },0);
     var extra=apro.reduce(function(a,v){return a+((v.festivos&&v.festivos.length)||0);},0);
-    h+='<div style="font-size:11px;padding:.15rem 0;color:var(--text2)">👤 <strong>'+e.n+'</strong> — '+apro.length+'/2 bloques aprobados · <strong>'+dias+'/30 días</strong>'+
-      (extra?' <span style="color:#16a34a">(+'+extra+' día(s) extra por festivos, no descuentan)</span>':'')+
-      (pend?' · ⏳ '+pend+' pendiente(s)':'')+'</div>';
+    var previos=parseInt(e.vacUsado)||0;
+    var total=dias+previos;
+    var quedan=Math.max(0,30-total);
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;font-size:11px;padding:.15rem 0;color:var(--text2)">'+
+      '<div>👤 <strong>'+e.n+'</strong> — '+apro.length+'/2 bloques · <strong>'+total+'/30 días</strong>'+
+      (previos?' <span style="color:var(--text3)">('+dias+' en la app + '+previos+' ya consumidos)</span>':'')+
+      ' · <strong style="color:'+(quedan>0?'#16a34a':'#dc2626')+'">quedan '+quedan+'</strong>'+
+      (extra?' <span style="color:#16a34a">(+'+extra+' por festivos, no descuentan)</span>':'')+
+      (pend?' · ⏳ '+pend+' pendiente(s)':'')+'</div>'+
+      (CUR_USER==='Josep'?'<button data-emp="'+e.n+'" onclick="editVacUsado(this.dataset.emp)" style="font-size:10px;padding:2px 8px;border:none;border-radius:6px;background:var(--accent-bg);color:var(--accent);cursor:pointer;flex-shrink:0">✏️ Ajustar</button>':'')+
+      '</div>';
   });
   h+='</div>';
 
@@ -2078,8 +2089,8 @@ function rVacaciones(){
         (v.estado==='aprobado'?'background:#dcfce7;color:#16a34a':v.estado==='rechazado'?'background:#fee2e2;color:#dc2626':'background:#fef9c3;color:#b45309')+'">'+
         (v.estado==='aprobado'?'✔':v.estado==='rechazado'?'✖':'…')+'</div>'+
       '<div style="flex:1">'+
-      '<div style="font-size:13px;font-weight:700;color:var(--text1)">🏖 '+v.empleado+' — Bloque '+v.bloque+': '+fechaES(v.inicio)+' → '+fechaES(v.fin)+'</div>'+
-      '<div style="font-size:10px;color:var(--text3);margin-top:2px">Solicitado el '+v.fecha+(v.festivos&&v.festivos.length?' · <span style="color:#16a34a;font-weight:700">+'+v.festivos.length+' día(s) sumado(s) por festivo(s): '+v.festivos.map(fechaES).join(', ')+'</span>':'')+'</div>'+
+      '<div style="font-size:13px;font-weight:700;color:var(--text1)">'+(v.asignado?'👑 '+v.empleado+' — Vacaciones ASIGNADAS por Josep: ':'🏖 '+v.empleado+' — Bloque '+v.bloque+': ')+fechaES(v.inicio)+' → '+fechaES(v.fin)+'</div>'+
+      '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(v.asignado?'Asignado el ':'Solicitado el ')+v.fecha+(v.festivos&&v.festivos.length?' · <span style="color:#16a34a;font-weight:700">+'+v.festivos.length+' día(s) sumado(s) por festivo(s): '+v.festivos.map(fechaES).join(', ')+'</span>':'')+'</div>'+
       (v.avisos&&v.avisos.length?'<div style="font-size:10px;color:#b45309;margin-top:2px">⚠️ '+v.avisos.join(' · ')+'</div>':'')+
       (v.motivo?'<div style="font-size:11px;color:var(--text2);margin-top:2px">📝 '+v.motivo+'</div>':'')+
       '<div style="margin-top:.3rem;font-size:10px;font-weight:700">'+(v.estado==='aprobado'?'<span style="color:#16a34a">✅ Aprobado por Josep · '+(v.resuelto||'')+'</span>':v.estado==='rechazado'?'<span style="color:#dc2626">❌ Rechazado por Josep · '+(v.resuelto||'')+'</span>':'<span style="color:#b45309">⏳ Pendiente de aprobación de Josep</span>')+'</div>'+
@@ -2093,6 +2104,19 @@ function rVacaciones(){
       '</div>';
   }).join(''):'<div style="font-size:12px;color:var(--text3);padding:.3rem 0">Sin solicitudes</div>';
   var opts=empList().map(function(e){return '<option'+(e.n===CUR_USER?' selected':'')+'>'+e.n+'</option>';}).join('');
+  if(CUR_USER==='Josep'){
+    h+='<div style="margin-top:.6rem;border-top:2px solid var(--accent);padding-top:.5rem;background:var(--accent-bg);border-radius:10px;padding:.6rem .75rem">'+
+      '<div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:.2rem">👑 Asignar vacaciones (solo Josep) — inicio y fin libres</div>'+
+      '<p style="font-size:10px;color:var(--text3);margin-bottom:.4rem">Para el bloque 2 (asignado por la empresa) o casos especiales. Quedan aprobadas directamente y aparecen en la lista como las demás. Si el rango incluye festivos, la app ofrece prorrogar el fin (los festivos no consumen vacaciones).</p>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.3rem;margin-bottom:.3rem">'+
+      '<div class="rfl"><label style="font-size:10px">Empleado/a</label><select id="va_emp" style="width:100%;font-size:12px;padding:.3rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit">'+empList().map(function(e){return '<option>'+e.n+'</option>';}).join('')+'</select></div>'+
+      '<div class="rfl"><label style="font-size:10px">Inicio</label><input type="date" id="va_inicio" style="width:100%;font-size:12px;padding:.3rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit"></div>'+
+      '<div class="rfl"><label style="font-size:10px">Fin</label><input type="date" id="va_fin" style="width:100%;font-size:12px;padding:.3rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit"></div>'+
+      '</div>'+
+      '<input type="text" id="va_motivo" placeholder="Nota (opcional): bloque 2, acuerdo especial..." style="width:100%;font-size:12px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:6px;background:var(--bg1);color:var(--text1);font-family:inherit;margin-bottom:.3rem">'+
+      '<button onclick="asignarVacacion()" style="width:100%;font-size:12px;padding:.4rem;border:none;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit">👑 Asignar (PIN de Josep)</button>'+
+      '</div>';
+  }
   h+='<div style="margin-top:.6rem;border-top:1px solid var(--border1);padding-top:.5rem">'+
     '<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.4rem">+ Nueva solicitud (bloque de 15 días)</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.3rem;margin-bottom:.3rem">'+
@@ -2131,6 +2155,56 @@ function addVacacion(){
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rVacaciones();
   alert('✓ Solicitud registrada. Pendiente de aprobación de Josep.');
 }
+function editVacUsado(nombre){
+  if(CUR_USER!=='Josep'){alert('Solo Josep puede ajustar los días.');return;}
+  if(!pinJosep('ajustar días de vacaciones'))return;
+  var lista=empList();
+  var e=lista.filter(function(x){return x.n===nombre;})[0];
+  if(!e)return;
+  var actual=parseInt(e.vacUsado)||0;
+  var v=prompt('✏️ Días de vacaciones YA CONSUMIDOS por '+nombre+' fuera de la app este año\n(se restan de sus 30 días):',String(actual));
+  if(v===null)return;
+  v=parseInt(v);
+  if(isNaN(v)||v<0||v>30){alert('❌ Debe ser un número entre 0 y 30.');return;}
+  e.vacUsado=v;
+  S.empleados=lista;
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
+  rVacaciones();
+}
+
+function asignarVacacion(){
+  if(CUR_USER!=='Josep'){alert('Solo Josep puede asignar vacaciones.');return;}
+  var emp=document.getElementById('va_emp')?.value;
+  var inicio=document.getElementById('va_inicio')?.value;
+  var fin=document.getElementById('va_fin')?.value;
+  var motivo=document.getElementById('va_motivo')?.value?.trim()||'';
+  if(!inicio||!fin){alert('Indica inicio y fin.');return;}
+  if(fin<inicio){alert('El fin no puede ser anterior al inicio.');return;}
+  var fest=festivosEnRango(inicio,fin);
+  if(fest.length){
+    if(confirm('El rango incluye '+fest.length+' festivo(s): '+fest.map(fechaES).join(', ')+'.\n\nLos festivos no consumen vacaciones — ¿prorrogar el FIN '+fest.length+' día(s) automáticamente?\n\nAceptar = prorrogar · Cancelar = mantener las fechas exactas')){
+      fin=addDias(fin,fest.length);
+      // por si la prórroga pisa nuevos festivos
+      var f2=festivosEnRango(inicio,fin);
+      while(f2.length>fest.length){fin=addDias(fin,f2.length-fest.length);fest=f2;f2=festivosEnRango(inicio,fin);}
+      fest=f2;
+    }
+  }
+  var solapes=(S.VACACIONES||[]).filter(function(v){return v.estado!=='rechazado'&&v.empleado!==emp&&inicio<=v.fin&&fin>=v.inicio;});
+  var dias=Math.round((new Date(fin+'T12:00:00')-new Date(inicio+'T12:00:00'))/(24*3600*1000))+1-fest.length;
+  var resumen='👑 Asignar a '+emp+': '+fechaES(inicio)+' → '+fechaES(fin)+' ('+dias+' día(s) de vacaciones'+(fest.length?' + '+fest.length+' festivo(s)':'')+')'+
+    (solapes.length?'\n\n⚠️ OJO: coincide con '+solapes.map(function(v){return v.empleado;}).join(', ')+'.':'');
+  if(!confirm(resumen+'\n\n¿Confirmar la asignación?'))return;
+  if(!pinJosep('asignar vacaciones'))return;
+  if(!S.VACACIONES)S.VACACIONES=[];
+  S.VACACIONES.unshift({id:Date.now(),estado:'aprobado',asignado:true,empleado:emp,bloque:'2 (asignado)',
+    inicio:inicio,fin:fin,festivos:fest,avisos:solapes.length?['Coincide con '+solapes.map(function(v){return v.empleado;}).join(', ')]:[],motivo:motivo,
+    fecha:new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    resuelto:new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})});
+  if(S.VACACIONES.length>40)S.VACACIONES=S.VACACIONES.slice(0,40);
+  sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rVacaciones();
+}
+
 function resolverVacacion(idx,ok){
   idx=parseInt(idx);
   var v=S.VACACIONES&&S.VACACIONES[idx];
@@ -3616,7 +3690,9 @@ function rAyuda(){
       "<p>Digitaliza el Calendario de Vacaciones 2027: cada empleado dispone de <strong>30 días naturales al año</strong>, en <strong>2 bloques de 15 días consecutivos</strong> (bloque 1 de libre elección, bloque 2 asignado por la empresa). La pestaña muestra un contador por empleado (bloques aprobados y días sobre 30) y el desplegable <strong>«📅 Ventanas de inicio por empleado»</strong>, con los lunes disponibles en verde y los <strong>bloqueados en rojo</strong>.</p>"+
       "<p style=\"margin-top:.4rem\"><strong>Los festivos no consumen vacaciones:</strong> si un festivo cae dentro del bloque, se suma un día más por cada festivo — la fecha fin se prorroga automáticamente y la ficha muestra qué festivos sumaron días.</p>"+
       "<p style=\"margin-top:.4rem\"><strong>Al solicitar</strong>, la app comprueba automáticamente: que el inicio sea lunes laborable, la antelación mínima de 2 meses, que no coincida con las vacaciones de un compañero, que el bloque no pise los períodos bloqueados por la empresa (Navidad-Reyes, Fallas, Black Friday, Cyber Monday), y <strong>las ventanas propias de cada empleado</strong> según sus tablas del calendario: Lili solo los lunes tras su domingo de turno (semanas B) con sus 7 semanas bloqueadas, Laurita los suyos (semanas A) con sus 7, y Edgar cualquier lunes salvo sus 14 bloqueados — si el lunes elegido no es válido, la app avisa y sugiere los próximos inicios válidos. Si el bloque incluye festivos, <strong>se prorroga automáticamente</strong> tantos días como festivos (Art. 13 Convenio) y la fecha fin lo refleja.</p>"+
-      "<p style=\"margin-top:.4rem\">Los avisos no bloquean la solicitud (queda constancia de ellos en la ficha), la firma el empleado con su PIN y la aprueba o rechaza Josep con el suyo — con el mismo check grande ✔/✖/… que en Turnos. Solo Josep puede borrar solicitudes.</p>"
+      "<p style=\"margin-top:.4rem\">Los avisos no bloquean la solicitud (queda constancia de ellos en la ficha), la firma el empleado con su PIN y la aprueba o rechaza Josep con el suyo — con el mismo check grande ✔/✖/… que en Turnos. Solo Josep puede borrar solicitudes.</p>"+
+      "<p style=\"margin-top:.4rem\"><strong>👑 Asignación directa:</strong> cuando Josep inicia sesión, ve además un formulario exclusivo para <strong>asignar vacaciones con inicio y fin libres</strong> (pensado para el bloque 2, que asigna la empresa, o casos especiales). Quedan aprobadas directamente, marcadas como «ASIGNADAS por Josep», y cuentan en el contador de días igual que las demás.</p>"+
+      "<p style=\"margin-top:.4rem\"><strong>✏️ Ajuste de días consumidos:</strong> Josep puede indicar, por empleado, los días ya disfrutados fuera de la app este año — el contador los resta de los 30 y muestra siempre los días que quedan.</p>"
     },
     {ic:"⭐",ti:"Ventas preferentes",body:
       "<p>Lista de productos que hay que <strong>ofrecer y vender de forma preferente</strong> (exceso de stock, caducidad próxima, mejor margen...). La gestiona Josep con su PIN: producto, prioridad (⭐ preferente / 🔥 alta) y motivo.</p>"+
