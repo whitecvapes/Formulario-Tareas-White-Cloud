@@ -873,6 +873,9 @@ function syncFields(){
 function syncEstado(){
   try{
     var fields=syncFields();
+    // Un PC sin plantilla sellada (empTs=0) no envía 'empleados': así nunca puede
+    // machacar en el servidor los ajustes de días/PINs hechos por Josep
+    if(!(S.empTs>0))delete fields.empleados;
     // POST: el estado viaja en el cuerpo, sin el límite de tamaño de las URLs GET
     var body=Object.keys(fields).map(function(k){return k+'='+encodeURIComponent(fields[k]);}).join('&');
     fetch(SHEETS_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
@@ -899,11 +902,11 @@ function syncEstadoGet(fields){
   try{
     var LIMIT=7500;
     var base=['action','fecha','ch','che','wch','wcom','wche','dm','cam_obs','tomb'];
-    var extras=['rc','SATS','ENCARGOS','ENVIOS','EDGARS','SUGERENCIAS','comments','cajComments'];
+    var extras=['empleados','rc','SATS','ENCARGOS','ENVIOS','EDGARS','SUGERENCIAS','comments','cajComments'];
     var params='';
     base.forEach(function(k){params+=(params?'&':'?')+k+'='+encodeURIComponent(fields[k]);});
     for(var drop=0;drop<=extras.length;drop++){
-      var lista=extras.slice(0,extras.length-drop);
+      var lista=extras.slice(0,extras.length-drop).filter(function(k){return fields[k]!==undefined;});
       var extraStr=lista.map(function(k){return '&'+k+'='+encodeURIComponent(fields[k]);}).join('');
       if((SHEETS_URL+params+extraStr).length<LIMIT||drop===extras.length){params+=extraStr;break;}
     }
