@@ -863,7 +863,7 @@ function syncFields(){
     limp:JSON.stringify(S.limp||{}),
     TURNOS:JSON.stringify((S.TURNOS||[]).slice(0,60)),
     VACACIONES:JSON.stringify((S.VACACIONES||[]).slice(0,40)),
-    empleados:JSON.stringify({ts:S.empTs||0,lista:S.empleados||[]}),
+    empleados:JSON.stringify((S.empleados||[]).map(function(e){var c={};for(var k in e)c[k]=e[k];c._ts=S.empTs||0;return c;})),
     VENTAS:JSON.stringify((S.VENTAS||[]).slice(0,30)),
     AGUA:JSON.stringify((S.AGUA||[]).slice(0,200)),
     logins:JSON.stringify((S.logins||[]).slice(0,100))
@@ -981,14 +981,18 @@ function loadEstado(cb){
         if(Array.isArray(data.TURNOS)&&data.TURNOS.length)S.TURNOS=filterTomb('TURNOS',mergeById(S.TURNOS,data.TURNOS));
         if(Array.isArray(data.VACACIONES)&&data.VACACIONES.length)S.VACACIONES=filterTomb('VACACIONES',mergeById(S.VACACIONES,data.VACACIONES));
         var empPack=data.empleados;
+        // formato intermedio {ts,lista} (una versión puntual lo usó): normalizar a lista
         if(empPack&&!Array.isArray(empPack)&&typeof empPack==='object'&&Array.isArray(empPack.lista)){
-          // formato nuevo {ts,lista}: solo se adopta si el servidor tiene un cambio MÁS RECIENTE
-          if(empPack.lista.length&&(parseInt(empPack.ts)||0)>=(S.empTs||0)){
-            S.empleados=empPack.lista;S.empTs=parseInt(empPack.ts)||0;vacRolloverCheck();
+          var _t=parseInt(empPack.ts)||0;
+          empPack=empPack.lista.map(function(e){var c={};for(var k in e)c[k]=e[k];if(c._ts===undefined)c._ts=_t;return c;});
+        }
+        if(Array.isArray(empPack)&&empPack.length){
+          // la plantilla viaja como lista normal (compatible con versiones antiguas de la app);
+          // cada registro lleva _ts: solo se adopta si el servidor trae un cambio MÁS RECIENTE
+          var rts=0;empPack.forEach(function(e){var t=parseInt(e._ts)||0;if(t>rts)rts=t;});
+          if(rts>=(S.empTs||0)){
+            S.empleados=empPack;S.empTs=rts;vacRolloverCheck();
           }
-        }else if(Array.isArray(empPack)&&empPack.length){
-          // formato antiguo sin marca de tiempo: solo si aquí no hay datos ya sellados
-          if(!(S.empTs>0)){S.empleados=empPack;vacRolloverCheck();}
         }
         if(Array.isArray(data.VENTAS)&&data.VENTAS.length)S.VENTAS=filterTomb('VENTAS',mergeById(S.VENTAS,data.VENTAS));
         if(Array.isArray(data.AGUA)&&data.AGUA.length)S.AGUA=filterTomb('AGUA',mergeById(S.AGUA,data.AGUA));
@@ -2081,7 +2085,7 @@ function rVacaciones(){
   // ── contador ANUAL de días por empleado (se reinicia cada 1 de enero; la deuda se arrastra) ──
   var yearNow=new Date().getFullYear();
   h+='<div style="background:var(--bg2);border-radius:10px;padding:.5rem .75rem;margin-bottom:.5rem">'+
-    '<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:.25rem">📊 Días de vacaciones '+yearNow+' (30 por persona · el 1 de enero se reinician y la deuda se resta automáticamente)</div>';
+    '<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:.25rem">📊 Días de vacaciones '+yearNow+' (30 por persona · el 1 de enero se reinician y la deuda se resta automáticamente)'+(S.empTs?' <span style="font-weight:400;color:var(--text3)">· plantilla del '+new Date(S.empTs).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+'</span>':'')+'</div>';
   empList().forEach(function(e){
     var apro=(S.VACACIONES||[]).filter(function(v){return v.empleado===e.n&&v.estado==='aprobado'&&String(v.inicio).slice(0,4)==String(yearNow);});
     var bloquesApro=apro.filter(function(v){return v.bloque!=='libre';}).length;
