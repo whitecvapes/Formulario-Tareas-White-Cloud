@@ -863,7 +863,7 @@ function syncFields(){
     limp:JSON.stringify(S.limp||{}),
     TURNOS:JSON.stringify((S.TURNOS||[]).slice(0,60)),
     VACACIONES:JSON.stringify((S.VACACIONES||[]).slice(0,40)),
-    empleados:JSON.stringify(S.empleados||[]),
+    empleados:JSON.stringify({ts:S.empTs||0,lista:S.empleados||[]}),
     VENTAS:JSON.stringify((S.VENTAS||[]).slice(0,30)),
     AGUA:JSON.stringify((S.AGUA||[]).slice(0,200)),
     logins:JSON.stringify((S.logins||[]).slice(0,100))
@@ -980,7 +980,16 @@ function loadEstado(cb){
         if(data.limp&&typeof data.limp==='object'&&!Array.isArray(data.limp)&&Object.keys(data.limp).length)S.limp=data.limp;
         if(Array.isArray(data.TURNOS)&&data.TURNOS.length)S.TURNOS=filterTomb('TURNOS',mergeById(S.TURNOS,data.TURNOS));
         if(Array.isArray(data.VACACIONES)&&data.VACACIONES.length)S.VACACIONES=filterTomb('VACACIONES',mergeById(S.VACACIONES,data.VACACIONES));
-        if(Array.isArray(data.empleados)&&data.empleados.length){S.empleados=data.empleados;vacRolloverCheck();}
+        var empPack=data.empleados;
+        if(empPack&&!Array.isArray(empPack)&&typeof empPack==='object'&&Array.isArray(empPack.lista)){
+          // formato nuevo {ts,lista}: solo se adopta si el servidor tiene un cambio MÁS RECIENTE
+          if(empPack.lista.length&&(parseInt(empPack.ts)||0)>=(S.empTs||0)){
+            S.empleados=empPack.lista;S.empTs=parseInt(empPack.ts)||0;vacRolloverCheck();
+          }
+        }else if(Array.isArray(empPack)&&empPack.length){
+          // formato antiguo sin marca de tiempo: solo si aquí no hay datos ya sellados
+          if(!(S.empTs>0)){S.empleados=empPack;vacRolloverCheck();}
+        }
         if(Array.isArray(data.VENTAS)&&data.VENTAS.length)S.VENTAS=filterTomb('VENTAS',mergeById(S.VENTAS,data.VENTAS));
         if(Array.isArray(data.AGUA)&&data.AGUA.length)S.AGUA=filterTomb('AGUA',mergeById(S.AGUA,data.AGUA));
         if(Array.isArray(data.logins)&&data.logins.length){
@@ -1036,12 +1045,12 @@ function load(){
       autoGuardarSemana();
       S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,bi_total:S.bi_total||0,bil:S.bil||{},em:S.em||'',tr:S.tr||'mañana',wch:{},wcom:{},wche:{},semana:semActual,
         comments:cleanWeeklyComments(S.comments),semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
-        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],VACACIONES:S.VACACIONES||[],logins:S.logins||[],empleados:S.empleados||[],VENTAS:S.VENTAS||[],AGUA:S.AGUA||[]};
+        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],VACACIONES:S.VACACIONES||[],logins:S.logins||[],empleados:S.empleados||[],VENTAS:S.VENTAS||[],AGUA:S.AGUA||[],empTs:S.empTs||0};
     } else {
       S={date:t,ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,bi_total:S.bi_total||0,bil:S.bil||{},em:S.em||'',tr:S.tr||'mañana',
         wch:S.wch||{},wcom:S.wcom||{},wche:S.wche||{},semana:S.semana||semActual,
         comments:S.comments||{},semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
-        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],VACACIONES:S.VACACIONES||[],logins:S.logins||[],empleados:S.empleados||[],VENTAS:S.VENTAS||[],AGUA:S.AGUA||[]};
+        SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],VACACIONES:S.VACACIONES||[],logins:S.logins||[],empleados:S.empleados||[],VENTAS:S.VENTAS||[],AGUA:S.AGUA||[],empTs:S.empTs||0};
     }
     sv();
   }
@@ -2263,7 +2272,8 @@ function vacRolloverCheck(){
   // la deuda pasa como «días ya consumidos» del año nuevo.
   var yearNow=new Date().getFullYear();
   var lista=empList();
-  var cambio=false;
+  var cambio=false;  // reinicio anual real (deuda) → sella empTs: debe ganar en la sincronización
+  var norm=false;    // solo normalización (vacYear ausente) → NO sella: un PC recién abierto no debe pisar los datos del servidor
   lista.forEach(function(e){
     var y=parseInt(e.vacYear)||yearNow;
     if(y<yearNow){
@@ -2274,11 +2284,12 @@ function vacRolloverCheck(){
       cambio=true;
     }else if(e.vacYear===undefined){
       e.vacYear=yearNow;
-      cambio=true;
+      norm=true;
     }
   });
-  if(cambio){
+  if(cambio||norm){
     S.empleados=lista;
+    if(cambio)S.empTs=Date.now();
     sv();
   }
 }
@@ -2297,6 +2308,7 @@ function editVacUsado(nombre){
   e.vacUsado=v;
   e.vacYear=new Date().getFullYear();
   S.empleados=lista;
+  S.empTs=Date.now();
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();
   rVacaciones();
 }
@@ -2621,6 +2633,7 @@ function setLimp(id,d){
 
 // ── 👑 PANEL DE JOSEP ──
 function empGuardar(){
+  S.empTs=Date.now(); // marca de tiempo: el cambio más reciente de la plantilla gana en la sincronización
   sv();LAST_LOCAL_CHANGE=Date.now();syncEstado();rJosep();
 }
 function empValidarNombre(n,ignorarIdx){
@@ -4062,7 +4075,7 @@ function resetDia(){
   S={date:today(),ch:{},che:{},mo:S.mo||{},bi:S.bi||0,ba:S.ba||false,bi_total:S.bi_total||0,bil:S.bil||{},em:em,tr:tr,
     wch:S.wch||{},wcom:S.wcom||{},wche:S.wche||{},semana:S.semana||weekKey(),
     comments:cleanDailyComments(S.comments||{}),semReg:S.semReg||[],tabReg:S.tabReg||{},dm:S.dm||[],
-    SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],VACACIONES:S.VACACIONES||[],logins:S.logins||[],empleados:S.empleados||[],VENTAS:S.VENTAS||[],AGUA:S.AGUA||[]};
+    SATS:S.SATS||[],ENCARGOS:S.ENCARGOS||[],ENVIOS:S.ENVIOS||[],EDGARS:S.EDGARS||[],SUGERENCIAS:S.SUGERENCIAS||[],cajComments:S.cajComments||[],tomb:S.tomb||{},aviso:S.aviso||null,limp:S.limp||{},TURNOS:S.TURNOS||[],VACACIONES:S.VACACIONES||[],logins:S.logins||[],empleados:S.empleados||[],VENTAS:S.VENTAS||[],AGUA:S.AGUA||[],empTs:S.empTs||0};
   OS={};
   // Log who pressed Nuevo día
   var logEm=em||'(desconocido)';
