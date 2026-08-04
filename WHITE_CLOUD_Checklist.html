@@ -2167,7 +2167,7 @@ function rVacaciones(){
         (v.estado==='aprobado'?'background:#dcfce7;color:#16a34a':v.estado==='rechazado'?'background:#fee2e2;color:#dc2626':'background:#fef9c3;color:#b45309')+'">'+
         (v.estado==='aprobado'?'✔':v.estado==='rechazado'?'✖':'…')+'</div>'+
       '<div style="flex:1">'+
-      '<div style="font-size:13px;font-weight:700;color:var(--text1)">'+(v.asignado?'👑 '+v.empleado+' — Vacaciones ASIGNADAS por Josep: ':(v.bloque==='libre'?'🗓 '+v.empleado+' — FUERA de bloque: ':'🏖 '+v.empleado+' — Bloque '+v.bloque+': '))+fechaES(v.inicio)+' → '+fechaES(v.fin)+'</div>'+
+      '<div style="font-size:13px;font-weight:700;color:var(--text1)">'+(v.asignado?'👑 '+v.empleado+' — Vacaciones ASIGNADAS por Josep: ':(v.bloque==='libre'?'🗓 '+v.empleado+' — FUERA de bloque: ':'🏖 '+v.empleado+' — Bloque '+v.bloque+': '))+fechaES(v.inicio)+' → '+fechaES(v.fin)+' <span style="font-weight:400;font-size:11px;color:var(--blue2)">· 🔙 se reincorpora el '+fechaES(addDias(v.fin,1))+'</span></div>'+
       '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(v.asignado?'Asignado el ':'Solicitado el ')+v.fecha+(v.festivos&&v.festivos.length?' · <span style="color:#16a34a;font-weight:700">+'+v.festivos.length+' día(s) sumado(s) por festivo(s): '+v.festivos.map(fechaES).join(', ')+'</span>':'')+'</div>'+
       (v.avisos&&v.avisos.length?'<div style="font-size:10px;color:#b45309;margin-top:2px">⚠️ '+v.avisos.join(' · ')+'</div>':'')+
       (v.motivo?'<div style="font-size:11px;color:var(--text2);margin-top:2px">📝 '+v.motivo+'</div>':'')+
