@@ -999,6 +999,14 @@ function syncEstado(){
   }catch(e){console.log('syncEstado ERROR',e);setSyncStatus(false);}
 }
 
+var SYNC_RETRY_PEND=false;
+function syncRetryLuego(){
+  // un único reintento diferido — los 404/500 de Google suelen durar segundos
+  if(SYNC_RETRY_PEND)return;
+  SYNC_RETRY_PEND=true;
+  setSyncStatus(false,'Error temporal de Google — reintentando en 10 s');
+  setTimeout(function(){SYNC_RETRY_PEND=false;syncEstado();},10000);
+}
 function syncEstadoGet(fields){
   // Respaldo si el POST no llega: GET recortando lo menos crítico para caber en la URL (~8KB)
   try{
@@ -1013,14 +1021,19 @@ function syncEstadoGet(fields){
       if((SHEETS_URL+params+extraStr).length<LIMIT||drop===extras.length){params+=extraStr;break;}
     }
     fetch(SHEETS_URL+params)
-      .then(function(){console.log('syncEstado GET OK');setSyncStatus(true);})
-      .catch(function(e){console.log('syncEstado FAIL',e);setSyncStatus(false);});
-  }catch(e){setSyncStatus(false);}
+      .then(function(r){
+        if(r&&r.ok===false)throw new Error('HTTP '+r.status);
+        console.log('syncEstado GET OK');setSyncStatus(true);
+      })
+      .catch(function(e){console.log('syncEstado FAIL',e);syncRetryLuego();});
+  }catch(e){syncRetryLuego();}
 }
 
-function loadEstado(cb){
+function loadEstado(cb,intento){
+  intento=intento||1;
+  var MAX_INTENTOS=3; // los Apps Script de Google devuelven 404/500 transitorios de vez en cuando
   var el=document.getElementById('sync-status');
-  if(el){el.textContent='⏳ Conectando...';el.style.color='rgba(255,255,255,0.7)';}
+  if(el){el.textContent=intento===1?'⏳ Conectando...':'⏳ Reintentando ('+intento+'/'+MAX_INTENTOS+')...';el.style.color='rgba(255,255,255,0.7)';}
   fetch(SHEETS_URL+'?action=getEstado&fecha='+today())
     .then(function(r){
       if(!r.ok)throw new Error('HTTP '+r.status);
@@ -1135,7 +1148,15 @@ function loadEstado(cb){
         if(cb)cb();
       }
     })
-    .catch(function(err){setSyncStatus(false,'Error: '+err.message);if(cb)cb();});
+    .catch(function(err){
+      if(intento<MAX_INTENTOS){
+        // error transitorio (p. ej. HTTP 404 esporádico de Google): reintentar en unos segundos
+        setTimeout(function(){loadEstado(cb,intento+1);},2500*intento);
+      }else{
+        setSyncStatus(false,'Error: '+err.message+' — se reintenta solo en unos minutos');
+        if(cb)cb();
+      }
+    });
 }
 
 function today(){return new Date().toISOString().slice(0,10);}
